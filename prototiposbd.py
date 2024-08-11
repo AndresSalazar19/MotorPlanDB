@@ -135,6 +135,8 @@ while opcion != 3:
             elif opcionG == 5:
                 print('Para revisar vendedores presione: 1')
                 print('Para editar vendedores presione: 2')
+                print('Para eliminar vendedores presione: 3')
+                print('Salir presione 4')
                 opcionG5 = obtener_entero_positivo_y_cero_input('Escoja una opcion: ')
                 if opcionG5 == 1:
                     print('Lista Vendedores')
@@ -214,7 +216,34 @@ while opcion != 3:
                             print('Opción no válida.')
                     else:
                         print('No se encontró un vendedor con la cédula especificada.')
+                elif opcionG5 == 3:
+                    print('Lista de Vendedores para eliminar')
+                    query_lista_vendedores = """
+                        SELECT e1.cedula, e1.nombre AS vendedor_nombre, e1.apellido AS vendedor_apellido, 
+                               e1.email AS vendedor_email, e1.telefono AS vendedor_telefono
+                        FROM empleado e1
+                        WHERE e1.id_gerente = %s
+                    """
+                    cursor.execute(query_lista_vendedores, (cedulaGerente,))
+                    vendedores = cursor.fetchall()
+                    headers = ['Cédula', 'Nombre', 'Apellido', 'Email', 'Teléfono']
+                    print(tabulate(vendedores, headers=headers, tablefmt='fancy_grid'))
 
+                    cedula_vendedor = verificador_cedula('Ingrese la cédula del vendedor que desea eliminar: ')
+                    query_verificar_vendedor = "SELECT COUNT(*) FROM empleado WHERE cedula = %s AND id_gerente = %s"
+                    cursor.execute(query_verificar_vendedor, (cedula_vendedor, cedulaGerente))
+                    existe_vendedor = cursor.fetchone()[0]
+
+                    if existe_vendedor:
+                        query_eliminar_vendedor = "DELETE FROM empleado WHERE cedula = %s"
+                        cursor.execute(query_eliminar_vendedor, (cedula_vendedor,))
+                        conn.commit()
+                        print('Vendedor eliminado exitosamente.')
+                    else:
+                        print('No se encontró un vendedor con la cédula especificada.')
+
+                elif opcionG5 ==4:
+                    pass
 
 
             elif opcionG == 6:
