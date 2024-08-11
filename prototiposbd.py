@@ -5,9 +5,8 @@ config = {
     'user': 'adminGrupo4',
     'password': '8396Quinde',
     'host': 'grupo4demo.mysql.database.azure.com',
-    'database': 'motorplan',
-    'ssl_ca': '/path/to/BaltimoreCyberTrustRoot.crt.pem'
-}
+    'database': 'motorplan'}
+
 
 conn = mysql.connector.connect(**config)
 cursor = conn.cursor()
