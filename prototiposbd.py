@@ -133,20 +133,89 @@ while opcion != 3:
                 pass
 
             elif opcionG == 5:
-                print('Lista Vendedores')
-                query_lista_vendedores = """
-                    SELECT e1.cedula, e1.nombre AS vendedor_nombre, e1.apellido AS vendedor_apellido, 
-                           e1.email AS vendedor_email, e1.telefono AS vendedor_telefono, 
-                           CONCAT(e2.nombre, ' ', e2.apellido) AS gerente_nombre
-                    FROM empleado e1
-                    JOIN empleado e2 ON e1.id_gerente = e2.cedula
-                    WHERE e1.id_gerente = %s
-                """
-                cursor.execute(query_lista_vendedores, (cedulaGerente,))
-                vendedores = cursor.fetchall()
-                headers = ['Cédula', 'Nombre', 'Apellido', 'Email', 'Teléfono', 'Nombre Gerente']
-                print(tabulate(vendedores, headers=headers, tablefmt='fancy_grid'))
-                pass
+                print('Para revisar vendedores presione: 1')
+                print('Para editar vendedores presione: 2')
+                opcionG5 = obtener_entero_positivo_y_cero_input('Escoja una opcion: ')
+                if opcionG5 == 1:
+                    print('Lista Vendedores')
+                    query_lista_vendedores = """
+                        SELECT e1.cedula, e1.nombre AS vendedor_nombre, e1.apellido AS vendedor_apellido, 
+                               e1.email AS vendedor_email, e1.telefono AS vendedor_telefono, 
+                               CONCAT(e2.nombre, ' ', e2.apellido) AS gerente_nombre
+                        FROM empleado e1
+                        JOIN empleado e2 ON e1.id_gerente = e2.cedula
+                        WHERE e1.id_gerente = %s
+                    """
+                    cursor.execute(query_lista_vendedores, (cedulaGerente,))
+                    vendedores = cursor.fetchall()
+                    headers = ['Cédula', 'Nombre', 'Apellido', 'Email', 'Teléfono', 'Nombre Gerente']
+                    print(tabulate(vendedores, headers=headers, tablefmt='fancy_grid'))
+                    pass
+                elif opcionG5 == 2:
+                    print('Lista de Vendedores para editar')
+                    query_lista_vendedores = """
+                        SELECT e1.cedula, e1.nombre AS vendedor_nombre, e1.apellido AS vendedor_apellido, 
+                               e1.email AS vendedor_email, e1.telefono AS vendedor_telefono
+                        FROM empleado e1
+                        WHERE e1.id_gerente = %s
+                    """
+                    cursor.execute(query_lista_vendedores, (cedulaGerente,))
+                    vendedores = cursor.fetchall()
+                    headers = ['Cédula', 'Nombre', 'Apellido', 'Email', 'Teléfono']
+                    print(tabulate(vendedores, headers=headers, tablefmt='fancy_grid'))
+
+                    cedula_vendedor = verificador_cedula('Ingrese la cédula del vendedor que desea editar: ')
+                    query_verificar_vendedor = "SELECT COUNT(*) FROM empleado WHERE cedula = %s AND id_gerente = %s"
+                    cursor.execute(query_verificar_vendedor, (cedula_vendedor, cedulaGerente))
+                    existe_vendedor = cursor.fetchone()[0]
+
+                    if existe_vendedor:
+                        print('Campos disponibles para editar:')
+                        print('1. Cédula')
+                        print('2. Nombre')
+                        print('3. Apellido')
+                        print('4. Email')
+                        print('5. Teléfono')
+                        campo = obtener_entero_positivo_y_cero_input('Seleccione el campo que desea modificar (1-5): ')
+
+                        if campo in [1, 2, 3, 4, 5]:
+                            if campo == 1:
+                                nueva_cedula = verificador_cedula('Ingrese la nueva cédula del vendedor: ')
+                                query_actualizar_vendedor = """
+                                    UPDATE empleado
+                                    SET cedula = %s
+                                    WHERE cedula = %s
+                                """
+                                cursor.execute(query_actualizar_vendedor, (nueva_cedula, cedula_vendedor))
+                                conn.commit()
+                                print('Cédula del vendedor actualizada exitosamente.')
+                            else:
+                                if campo == 2:
+                                    nuevo_valor = input('Ingrese el nuevo nombre del vendedor: ')
+                                    campo_actualizar = 'nombre'
+                                elif campo == 3:
+                                    nuevo_valor = input('Ingrese el nuevo apellido del vendedor: ')
+                                    campo_actualizar = 'apellido'
+                                elif campo == 4:
+                                    nuevo_valor = input('Ingrese el nuevo email del vendedor: ')
+                                    campo_actualizar = 'email'
+                                elif campo == 5:
+                                    nuevo_valor = input('Ingrese el nuevo teléfono del vendedor: ')
+                                    campo_actualizar = 'telefono'
+                                query_actualizar_vendedor = f"""
+                                    UPDATE empleado
+                                    SET {campo_actualizar} = %s
+                                    WHERE cedula = %s
+                                """
+                                cursor.execute(query_actualizar_vendedor, (nuevo_valor, cedula_vendedor))
+                                conn.commit()
+                                print('Datos del vendedor actualizados exitosamente.')
+                        else:
+                            print('Opción no válida.')
+                    else:
+                        print('No se encontró un vendedor con la cédula especificada.')
+
+
 
             elif opcionG == 6:
                 print('Añadir Proformas')
