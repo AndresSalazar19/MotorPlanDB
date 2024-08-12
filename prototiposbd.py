@@ -11,10 +11,10 @@ config = {
 
 conn = mysql.connector.connect(**config)
 cursor = conn.cursor()
-def crear_grupo(cursor, conn):
+def crear_grupo(cursor, conn, cedulaGerente):
     # Paso 1: Obtener datos para el nuevo grupo
     id_grupo = input('Ingrese el ID del nuevo grupo: ')
-    id_gerente = input('Ingrese su cédula (ID del gerente): ')
+    id_gerente = cedulaGerente
     
     query_clientes_vigentes = """
         SELECT c.id_cliente, p.costo
@@ -117,36 +117,57 @@ def imprimir_menu(opciones):
     for i, opcion in enumerate(opciones, 1):
         print(f"{i}. {opcion}")
 
-def revisar_grupos(cursor):
+def revisar_grupos(cursor, cedulaGerente):
     query_lista_grupos = """
         SELECT g.id_grupo, g.id_gerente, g.id_ganador, COUNT(d.id_cliente) AS num_clientes
         FROM grupo g
         LEFT JOIN detalle_grupo d ON g.id_grupo = d.id_grupo
+        WHERE g.id_gerente = %s
         GROUP BY g.id_grupo, g.id_gerente, g.id_ganador
     """
-    cursor.execute(query_lista_grupos)
+    cursor.execute(query_lista_grupos, (cedulaGerente,))
     grupos = cursor.fetchall()
     
     if not grupos:
-        print("No hay grupos disponibles.")
+        print("No hay grupos disponibles para el gerente especificado.")
         return
+    
     headers = ['ID Grupo', 'ID Gerente', 'ID Ganador', 'Número de Clientes']
     print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
-    
     return grupos
-def editar_o_eliminar_grupo(cursor, conn):
-    grupos = revisar_grupos(cursor)
+
+def editar_o_eliminar_grupo(cursor, conn, cedulaGerente):
+    # Obtener los grupos asociados al cedulaGerente
+    query_grupos = """
+        SELECT g.id_grupo
+        FROM grupo g
+        WHERE g.id_gerente = %s
+    """
+    cursor.execute(query_grupos, (cedulaGerente,))
+    grupos = cursor.fetchall()
     
     if not grupos:
+        print('No hay grupos disponibles para el gerente con la cédula proporcionada.')
         return
+    
+    # Mostrar los grupos disponibles para el gerente
+    print('Grupos disponibles para editar o eliminar:')
+    headers = ['ID Grupo']
+    print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
+    
     id_grupo = input('Ingrese el ID del grupo que desea editar o del que desea eliminar un registro: ')
     
-    query_verificar_grupo = "SELECT COUNT(*) FROM grupo WHERE id_grupo = %s"
-    cursor.execute(query_verificar_grupo, (id_grupo,))
+    # Verificar si el grupo pertenece al gerente
+    query_verificar_grupo = """
+        SELECT COUNT(*)
+        FROM grupo
+        WHERE id_grupo = %s AND id_gerente = %s
+    """
+    cursor.execute(query_verificar_grupo, (id_grupo, cedulaGerente))
     existe_grupo = cursor.fetchone()[0]
     
     if not existe_grupo:
-        print('No se encontró un grupo con el ID especificado.')
+        print('No se encontró un grupo con el ID especificado o el grupo no pertenece al gerente proporcionado.')
         return
     
     print('Seleccione la opción que desea realizar:')
@@ -197,9 +218,10 @@ def editar_o_eliminar_grupo(cursor, conn):
         cursor.execute(query_eliminar_grupo, (id_grupo,))
         conn.commit()
         print('Grupo eliminado exitosamente.')
-
     else:
         print('Opción no válida.')
+
+
 def modificar_concesionaria(cursor, conn):
     print("Lista de Concesionarias")
     query_lista_concesionarias = """
@@ -368,7 +390,7 @@ def revisar_o_editar_cliente():
     else:
         print("No se encontraron clientes para el vendedor con cédula proporcionada.")
 
-def modificar_empleado(cursor, conn):
+def modificar_empleado(cursor, conn, cedulaGerente):
     print("Lista de Empleados")
     query_lista_empleados = """
         SELECT cedula, nombre, apellido FROM empleado
@@ -426,7 +448,7 @@ def modificar_empleado(cursor, conn):
     else:
         print('Opción no válida.')
 
-def añadir_empleado(cursor, conn):
+def añadir_empleado(cursor, conn, cedulaGerente):
     print('Añadir Nuevo Empleado')
 
     cedula = verificador_cedula('Ingrese la cédula del empleado (10 caracteres): ')
@@ -434,7 +456,7 @@ def añadir_empleado(cursor, conn):
     apellido = input('Ingrese el apellido del empleado: ')
     email = input('Ingrese el email del empleado: ')
     telefono = verificador_telefono('Ingrese el teléfono del empleado: ')
-    id_gerente = verificador_cedula('Ingrese la cédula del gerente: ')
+    id_gerente = cedulaGerente
 
     query_insertar_empleado = """
         INSERT INTO empleado (cedula, nombre, apellido, email, telefono, id_gerente)
@@ -631,7 +653,43 @@ def ver_cuotas_pagadas(cursor):
     headers = ['ID Cuota', 'ID Cliente', 'ID Contrato', 'Valor Cuota', 'Fecha Pago']
     print(tabulate(cuotas_pagadas, headers=headers, tablefmt='fancy_grid'))
 
+def mostrar_contratos(cursor, cedulaGerente):
+    print('----Mostrar Contratos-----')
 
+    id_gerente = cedulaGerente
+
+    query_clientes = """
+        SELECT DISTINCT c.id_cliente
+        FROM contrato c
+        WHERE c.id_gerente = %s
+    """
+    cursor.execute(query_clientes, (id_gerente,))
+    clientes = cursor.fetchall()
+    
+    if not clientes:
+        print('No se encontraron clientes para el gerente especificado.')
+        return
+
+    print('Clientes asociados al gerente:')
+    for cliente in clientes:
+        print(cliente[0])
+
+    id_cliente = input('Ingrese la cédula del cliente para ver los detalles de su contrato: ')
+
+    query_contratos = """
+        SELECT id_contrato, id_proforma, descripcion, cuotas_totales, valor_cuota, fecha_firma, estado
+        FROM contrato
+        WHERE id_cliente = %s
+    """
+    cursor.execute(query_contratos, (id_cliente,))
+    contratos = cursor.fetchall()
+    
+    if not contratos:
+        print('No se encontraron contratos para el cliente especificado.')
+        return
+    
+    headers = ['ID Contrato', 'ID Proforma', 'Descripción', 'Cuotas Totales', 'Valor Cuota', 'Fecha Firma', 'Estado']
+    print(tabulate(contratos, headers=headers, tablefmt='fancy_grid'))
 
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
@@ -655,7 +713,7 @@ while opcion != 3:
                 opcionG = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4, 5, 6, 7, 8, 9): ')
 
             if opcionG == 1:
-                añadir_empleado(cursor, conn)                   
+                añadir_empleado(cursor, conn, cedulaGerente)                   
 
             elif opcionG == 2:
                 print('Seleccione la acción deseada:')
@@ -678,11 +736,11 @@ while opcion != 3:
                 accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
                 
                 if accion == 1:
-                    revisar_grupos(cursor)
+                    revisar_grupos(cursor, cedulaGerente)
                 elif accion == 2:
-                    editar_o_eliminar_grupo(cursor, conn)
+                    editar_o_eliminar_grupo(cursor, conn, cedulaGerente)
                 elif accion == 3:
-                    crear_grupo(cursor, conn)
+                    crear_grupo(cursor, conn, cedulaGerente)
                 else:
                     print('Opción no válida.')
 
@@ -831,42 +889,10 @@ while opcion != 3:
 
             elif opcionG == 7:
                 print('Revisar Contratos')
-                query_contratos = """
-                SELECT c.id_contrato, c.id_cliente, c.id_proforma, c.descripcion, c.cuotas_totales, 
-                       c.valor_cuota, c.fecha_firma, c.estado, c.id_vendedor
-                FROM contrato c
-                WHERE c.id_gerente = %s AND c.estado = 'Pendiente'
-                """
-                cursor.execute(query_contratos, (cedulaGerente,))
-                contratos = cursor.fetchall()
-                tabla_contratos = []
-                for i, (id_contrato, id_cliente, id_proforma, descripcion, cuotas_totales, valor_cuota,
-                        fecha_firma, estado, id_vendedor) in enumerate(contratos, start=1):
-                    tabla_contratos.append([i, id_contrato, id_cliente, id_proforma, descripcion, cuotas_totales,
-                                            valor_cuota, fecha_firma, estado, id_vendedor])
-                headers = ['Nº', 'ID Contrato', 'ID Cliente', 'ID Proforma', 'Descripción', 'Cuotas Totales',
-                           'Valor Cuota', 'Fecha Firma', 'Estado', 'ID Vendedor']
-                if tabla_contratos:
-                    print('Contratos Pendientes')
-                    print(tabulate(tabla_contratos, headers=headers, tablefmt='fancy_grid'))
-                    seleccion = obtener_entero_positivo_y_cero_input('Selecciona el número del contrato para aprobar: ')
-                    if 1 <= seleccion <= len(contratos):
-                        id_contrato_seleccionado = contratos[seleccion - 1][1]
-                        update_estado = """
-                        UPDATE contrato
-                        SET estado = 'Vigente'
-                        WHERE id_contrato = %s
-                        """
-                        cursor.execute(update_estado, (id_contrato_seleccionado,))
-                        conn.commit()
-                        print(f"Contrato ID {id_contrato_seleccionado} aprobado y estado actualizado a 'Vigente'.")
-                    else:
-                        print("Número de selección inválido.")
-                else:
-                    print("No se encontraron contratos pendientes asociados a tu cédula.")
+                mostrar_contratos(cursor, cedulaGerente)
             
             elif opcionG == 8:
-                modificar_empleado(cursor, conn)
+                modificar_empleado(cursor, conn, cedulaGerente)
 
             elif opcionG == 9:
                 print('Saliendo...')
