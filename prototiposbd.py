@@ -1,5 +1,6 @@
 import mysql.connector
 from tabulate import tabulate
+import random
 
 config = {
     'user': 'adminGrupo4',
@@ -10,8 +11,64 @@ config = {
 
 conn = mysql.connector.connect(**config)
 cursor = conn.cursor()
+def crear_grupo(cursor, conn):
+    # Paso 1: Obtener datos para el nuevo grupo
+    id_grupo = input('Ingrese el ID del nuevo grupo: ')
+    id_gerente = input('Ingrese su cédula (ID del gerente): ')
+    
+    query_clientes_vigentes = """
+        SELECT c.id_cliente, p.costo
+        FROM contrato c
+        JOIN proforma p ON c.id_proforma = p.id_proforma
+        WHERE c.estado = 'Vigente'
+    """
+    cursor.execute(query_clientes_vigentes)
+    clientes_vigentes = cursor.fetchall()
+    
+    if not clientes_vigentes:
+        print("No hay clientes con contratos vigentes.")
+        return
+    
+    query_clientes_en_grupo = """
+        SELECT id_cliente
+        FROM detalle_grupo
+    """
+    cursor.execute(query_clientes_en_grupo)
+    clientes_en_grupo = {cliente[0] for cliente in cursor.fetchall()}
+    
+    clientes_no_en_grupo = [cliente for cliente in clientes_vigentes if cliente[0] not in clientes_en_grupo]
 
+    if not clientes_no_en_grupo:
+        print("Todos los clientes con contratos vigentes ya están en un grupo.")
+        return
+    
+    rango_minimo = float(input('Ingrese el costo mínimo del rango: '))
+    rango_maximo = float(input('Ingrese el costo máximo del rango: '))
+    
+    clientes_seleccionados = [cliente for cliente in clientes_no_en_grupo if rango_minimo <= cliente[1] <= rango_maximo]
 
+    if len(clientes_seleccionados) < 5:
+        print("No hay suficientes clientes en el rango de costos especificado para formar un grupo.")
+        return
+    
+    clientes_aleatorios = random.sample(clientes_seleccionados, 5)
+    
+    query_insertar_grupo = """
+        INSERT INTO grupo (id_grupo, id_gerente, id_ganador)
+        VALUES (%s, %s, NULL)
+    """
+    cursor.execute(query_insertar_grupo, (id_grupo, id_gerente))
+    conn.commit()
+    
+    query_insertar_detalle_grupo = """
+        INSERT INTO detalle_grupo (id_grupo, id_cliente, fecha_sorteo)
+        VALUES (%s, %s, NULL)
+    """
+    for cliente in clientes_aleatorios:
+        cursor.execute(query_insertar_detalle_grupo, (id_grupo, cliente[0]))
+    
+    conn.commit()
+    print('Grupo creado y clientes añadidos exitosamente.')
 def obtener_entero_positivo_y_cero_input(mensaje):
     while True:
         try:
@@ -60,7 +117,89 @@ def imprimir_menu(opciones):
     for i, opcion in enumerate(opciones, 1):
         print(f"{i}. {opcion}")
 
+def revisar_grupos(cursor):
+    query_lista_grupos = """
+        SELECT g.id_grupo, g.id_gerente, g.id_ganador, COUNT(d.id_cliente) AS num_clientes
+        FROM grupo g
+        LEFT JOIN detalle_grupo d ON g.id_grupo = d.id_grupo
+        GROUP BY g.id_grupo, g.id_gerente, g.id_ganador
+    """
+    cursor.execute(query_lista_grupos)
+    grupos = cursor.fetchall()
+    
+    if not grupos:
+        print("No hay grupos disponibles.")
+        return
+    headers = ['ID Grupo', 'ID Gerente', 'ID Ganador', 'Número de Clientes']
+    print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
+    
+    return grupos
+def editar_o_eliminar_grupo(cursor, conn):
+    grupos = revisar_grupos(cursor)
+    
+    if not grupos:
+        return
+    id_grupo = input('Ingrese el ID del grupo que desea editar o del que desea eliminar un registro: ')
+    
+    query_verificar_grupo = "SELECT COUNT(*) FROM grupo WHERE id_grupo = %s"
+    cursor.execute(query_verificar_grupo, (id_grupo,))
+    existe_grupo = cursor.fetchone()[0]
+    
+    if not existe_grupo:
+        print('No se encontró un grupo con el ID especificado.')
+        return
+    
+    print('Seleccione la opción que desea realizar:')
+    print('1. Editar ID del grupo')
+    print('2. Editar ID del gerente')
+    print('3. Eliminar cliente del grupo')
+    print('4. Eliminar grupo')
+    
+    opcion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-4): ')
+    
+    if opcion == 1:
+        nuevo_id_grupo = input('Ingrese el nuevo ID del grupo: ')
+        query_editar_id_grupo = """
+            UPDATE grupo
+            SET id_grupo = %s
+            WHERE id_grupo = %s
+        """
+        cursor.execute(query_editar_id_grupo, (nuevo_id_grupo, id_grupo))
+        conn.commit()
+        print('ID del grupo actualizado exitosamente.')
 
+    elif opcion == 2:
+        nuevo_id_gerente = input('Ingrese el nuevo ID del gerente: ')
+        query_editar_id_gerente = """
+            UPDATE grupo
+            SET id_gerente = %s
+            WHERE id_grupo = %s
+        """
+        cursor.execute(query_editar_id_gerente, (nuevo_id_gerente, id_grupo))
+        conn.commit()
+        print('ID del gerente actualizado exitosamente.')
+
+    elif opcion == 3:
+        id_cliente = input('Ingrese el ID del cliente que desea eliminar del grupo: ')
+        query_eliminar_cliente = """
+            DELETE FROM detalle_grupo
+            WHERE id_grupo = %s AND id_cliente = %s
+        """
+        cursor.execute(query_eliminar_cliente, (id_grupo, id_cliente))
+        conn.commit()
+        print('Cliente eliminado del grupo exitosamente.')
+
+    elif opcion == 4:
+        query_eliminar_grupo = """
+            DELETE FROM grupo
+            WHERE id_grupo = %s
+        """
+        cursor.execute(query_eliminar_grupo, (id_grupo,))
+        conn.commit()
+        print('Grupo eliminado exitosamente.')
+
+    else:
+        print('Opción no válida.')
 def modificar_concesionaria(cursor, conn):
     print("Lista de Concesionarias")
     query_lista_concesionarias = """
@@ -122,7 +261,6 @@ def modificar_concesionaria(cursor, conn):
         print('Datos de la concesionaria actualizados exitosamente.')
     else:
         print('Opción no válida.')
-
 def añadir_concesionaria(cursor, conn):
     print('Añadir Nueva Concesionaria')
     
@@ -140,10 +278,6 @@ def añadir_concesionaria(cursor, conn):
     cursor.execute(query_insertar_concesionaria, (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria))
     conn.commit()
     print('Concesionaria añadida exitosamente.')
-
-    
-    
-    
 # Función para consultar y/o editar un cliente
 def revisar_o_editar_cliente():
     # Consultar la lista de clientes del vendedor
@@ -310,11 +444,198 @@ def añadir_empleado(cursor, conn):
     conn.commit()
     print('Empleado añadido exitosamente.')
 
+def añadir_proforma(cursor, conn):
+    print('----Añadir Proformas-----')
+    cuantas = obtener_entero_positivo_y_cero_input('Cuántas proformas añadirá: ')
+    
+    for i in range(cuantas):
+        query = "SELECT id_concesionaria FROM concesionaria"
+        cursor.execute(query)
+        ids_concesionarias = cursor.fetchall()
+        
+        if not ids_concesionarias:
+            print('No hay concesionarias disponibles para añadir una proforma.')
+            return
+        
+        print('ID de las concesionarias disponibles:')
+        for id_concesionaria in ids_concesionarias:
+            print(id_concesionaria[0])
+        
+        id_concesionaria = obtener_entero_positivo_y_cero_input('ID de la Concesionaria: ')
+        id_proforma = obtener_entero_positivo_y_cero_input('ID Proforma: ')
+        
+        print('Escriba la fecha en el siguiente formato: año-mes-día')
+        fecha_str = input('Fecha: ')
+        modelo = input('Modelo: ')
+        marca = input('Marca: ')
+        color = input('Color: ')
+        costo = obtener_float_positivo_input('Costo en dólares: ')
+        año = obtener_entero_positivo_y_cero_input('Año: ')
+        
+        add_proforma = """
+            INSERT INTO proforma
+            (id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        data_proforma = (id_proforma, id_concesionaria, fecha_str, modelo, marca, color, costo, año)
+        cursor.execute(add_proforma, data_proforma)
+        conn.commit()
+        print(f'Proforma {id_proforma} añadida exitosamente.')
+
+def modificar_o_eliminar_proforma(cursor, conn):
+    query_proformas = "SELECT id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio FROM proforma"
+    cursor.execute(query_proformas)
+    proformas = cursor.fetchall()
+    
+    if not proformas:
+        print('No hay proformas disponibles.')
+        return
+    
+    headers = ['ID Proforma', 'ID Concesionaria', 'Fecha', 'Modelo', 'Marca', 'Color', 'Costo', 'Año']
+    print(tabulate(proformas, headers=headers, tablefmt='fancy_grid'))
     
 
+    id_proforma = input('Ingrese el ID de la proforma que desea modificar o eliminar: ')
+    
+    query_verificar_proforma = "SELECT COUNT(*) FROM proforma WHERE id_proforma = %s"
+    cursor.execute(query_verificar_proforma, (id_proforma,))
+    existe_proforma = cursor.fetchone()[0]
+    
+    if not existe_proforma:
+        print('No se encontró una proforma con el ID especificado.')
+        return
+    
+    print('Seleccione la opción que desea realizar:')
+    print('1. Modificar ID de la proforma')
+    print('2. Modificar ID de la concesionaria')
+    print('3. Modificar Fecha')
+    print('4. Modificar Modelo')
+    print('5. Modificar Marca')
+    print('6. Modificar Color')
+    print('7. Modificar Costo')
+    print('8. Modificar Año')
+    print('9. Eliminar proforma')
+    
+    opcion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-9): ')
+    
+    if opcion == 9:
+        query_eliminar_proforma = "DELETE FROM proforma WHERE id_proforma = %s"
+        cursor.execute(query_eliminar_proforma, (id_proforma,))
+        conn.commit()
+        print('Proforma eliminada exitosamente.')
+        return
+
+    if opcion == 1:
+        campo = 'id_proforma'
+        nuevo_valor = input('Ingrese el nuevo ID de la proforma: ')
+    elif opcion == 2:
+        campo = 'id_concesionaria'
+        nuevo_valor = input('Ingrese el nuevo ID de la concesionaria: ')
+    elif opcion == 3:
+        campo = 'fecha'
+        nuevo_valor = input('Ingrese la nueva fecha en el formato año-mes-día: ')
+    elif opcion == 4:
+        campo = 'modelo'
+        nuevo_valor = input('Ingrese el nuevo modelo: ')
+    elif opcion == 5:
+        campo = 'marca'
+        nuevo_valor = input('Ingrese la nueva marca: ')
+    elif opcion == 6:
+        campo = 'color'
+        nuevo_valor = input('Ingrese el nuevo color: ')
+    elif opcion == 7:
+        campo = 'costo'
+        nuevo_valor = obtener_float_positivo_input('Ingrese el nuevo costo en dólares: ')
+    elif opcion == 8:
+        campo = 'anio'
+        nuevo_valor = obtener_entero_positivo_y_cero_input('Ingrese el nuevo año: ')
+    else:
+        print('Opción no válida.')
+        return
+    
+    query_modificar_proforma = f"UPDATE proforma SET {campo} = %s WHERE id_proforma = %s"
+    cursor.execute(query_modificar_proforma, (nuevo_valor, id_proforma))
+    conn.commit()
+    print(f'{campo} de la proforma actualizado exitosamente.')
+
+def cobrar_cuota(cursor, conn):
+    print('----Cobro de Cuotas-----')
+
+    id_cliente = input('Ingrese el ID del cliente: ')
+
+    query_contratos_vigentes = """
+        SELECT c.id_contrato, c.valor_cuota, c.descripcion, c.fecha_firma
+        FROM contrato c
+        WHERE c.id_cliente = %s AND c.estado = 'Vigente'
+    """
+    cursor.execute(query_contratos_vigentes, (id_cliente,))
+    contratos = cursor.fetchall()
+
+    if not contratos:
+        print('No se encontraron contratos vigentes para el cliente especificado.')
+        return
+
+    headers = ['ID Contrato', 'Valor Cuota', 'Descripción', 'Fecha Firma']
+    print(tabulate(contratos, headers=headers, tablefmt='fancy_grid'))
+
+    id_contrato = obtener_entero_positivo_y_cero_input('Ingrese el ID del contrato que desea pagar: ')
+    
+    query_verificar_contrato = "SELECT COUNT(*) FROM contrato WHERE id_contrato = %s AND id_cliente = %s AND estado = 'Vigente'"
+    cursor.execute(query_verificar_contrato, (id_contrato, id_cliente))
+    existe_contrato = cursor.fetchone()[0]
+
+    if not existe_contrato:
+        print('No se encontró un contrato vigente con el ID especificado.')
+        return
+
+    cantidad_cuotas = obtener_entero_positivo_y_cero_input('¿Cuántas cuotas desea pagar?: ')
+
+    query_max_id_cuota = "SELECT COALESCE(MAX(id_cuota), 0) FROM cuota"
+    cursor.execute(query_max_id_cuota)
+    max_id_cuota = cursor.fetchone()[0]
+    nuevo_id_cuota = max_id_cuota + 1
+
+    query_valor_cuota = "SELECT valor_cuota FROM contrato WHERE id_contrato = %s"
+    cursor.execute(query_valor_cuota, (id_contrato,))
+    valor_cuota = cursor.fetchone()[0]
+    valor_total = valor_cuota * cantidad_cuotas
+
+    fecha_pago_str = input('Escriba la fecha del pago en el formato año-mes-día: ')
+
+    add_cuota = """
+        INSERT INTO cuota (id_cuota, id_cliente, id_contrato, valor_cuota, fecha_pago)
+        VALUES (%s, %s, %s, %s, %s)
+    """
+    for _ in range(cantidad_cuotas):
+        data_cuota = (nuevo_id_cuota, id_cliente, id_contrato, valor_total, fecha_pago_str)
+        cursor.execute(add_cuota, data_cuota)
+        nuevo_id_cuota += 1
+    
+    conn.commit()
+    print(f'{cantidad_cuotas} cuota(s) registrada(s) exitosamente.')
+
+def ver_cuotas_pagadas(cursor):
+    print('----Cuotas Pagadas-----')
+
+    query_cuotas_pagadas = """
+        SELECT id_cuota, id_cliente, id_contrato, valor_cuota, fecha_pago
+        FROM cuota
+    """
+    cursor.execute(query_cuotas_pagadas)
+    cuotas_pagadas = cursor.fetchall()
+
+    if not cuotas_pagadas:
+        print('No hay cuotas pagadas registradas.')
+        return
+
+    headers = ['ID Cuota', 'ID Cliente', 'ID Contrato', 'Valor Cuota', 'Fecha Pago']
+    print(tabulate(cuotas_pagadas, headers=headers, tablefmt='fancy_grid'))
+
+
+
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
-menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
-menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Cobrar Cuota', 'Salir']
+menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
+menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Gestionar Cuotas', 'Salir']
 
 
 opcion = 0
@@ -336,7 +657,6 @@ while opcion != 3:
             if opcionG == 1:
                 añadir_empleado(cursor, conn)                   
 
-
             elif opcionG == 2:
                 print('Seleccione la acción deseada:')
                 print('1. Añadir Concesionaria')
@@ -351,8 +671,20 @@ while opcion != 3:
                     print('Opción no válida.')
 
             elif opcionG == 3:
-                print('Creacion de Grupos')
-                pass
+                print('Seleccione la acción deseada:')
+                print('1. Mostrar Grupos')
+                print('2. Editar Grupos')
+                print('3. Crear Grupos')
+                accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
+                
+                if accion == 1:
+                    revisar_grupos(cursor)
+                elif accion == 2:
+                    editar_o_eliminar_grupo(cursor, conn)
+                elif accion == 3:
+                    crear_grupo(cursor, conn)
+                else:
+                    print('Opción no válida.')
 
             elif opcionG == 4:
                 print('Ventas por Vendedor')
@@ -485,30 +817,17 @@ while opcion != 3:
 
 
             elif opcionG == 6:
-                print('Añadir Proformas')
-                print('----Proformas-----')
-                cuantas = obtener_entero_positivo_y_cero_input('Cuantas proformas añadira: ')
-                for i in range(cuantas):
-                    query = "SELECT id_concesionaria FROM concesionaria"
-                    cursor.execute(query)
-                    ids_concesionarias = cursor.fetchall()
-                    for id_concesionaria in ids_concesionarias:
-                        print(id_concesionaria[0])
-                    id_concesionaria = obtener_entero_positivo_y_cero_input('ID de la Concesionaria: ')
-                    id_proforma = obtener_entero_positivo_y_cero_input('ID_Proforma: ')
-                    print('Escriba la fecha en el siguiente formato: año-mes-dia')
-                    fecha_str = input('Fecha: ')
-                    modelo = input('Modelo: ')
-                    marca = input('Marca: ')
-                    color = input('Color: ')
-                    costo = obtener_float_positivo_input('Costo en dolares: ')
-                    año = obtener_entero_positivo_y_cero_input('Año: ')
-                    add_proforma = ("INSERT INTO proforma "
-                                    "(id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio) "
-                                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)")
-                    data_proforma = (id_proforma, id_concesionaria, fecha_str, modelo, marca, color, costo, año)
-                    cursor.execute(add_proforma, data_proforma)
-                    conn.commit()
+                print('Seleccione la acción deseada:')
+                print('1. Añadir Proformas')
+                print('2. Modificar o Eliminar Proforma')
+                accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
+
+                if accion == 1:
+                    añadir_proforma(cursor, conn)
+                elif accion == 2:
+                    modificar_o_eliminar_proforma(cursor, conn)
+                else:
+                    print('Opción no válida.')
 
             elif opcionG == 7:
                 print('Revisar Contratos')
@@ -685,7 +1004,16 @@ while opcion != 3:
             elif opcionV == 2:
                 revisar_o_editar_cliente()
             elif opcionV == 3:
-                print('Cobro de cuotas')
+                print('Seleccione la acción deseada:')
+                print('1. Cobrar Cuota')
+                print('2. Mostrar Cuotas')
+                accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
+                if accion == 1:
+                    cobrar_cuota(cursor, conn)
+                elif accion == 2:
+                    ver_cuotas_pagadas(cursor)
+                else:
+                    print('Opción no válida.')
             elif opcionV == 4:
                 print('Saliendo...')
                 break
