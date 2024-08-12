@@ -151,9 +151,86 @@ def revisar_o_editar_cliente():
     else:
         print("No se encontraron clientes para el vendedor con cédula proporcionada.")
 
+def modificar_empleado(cursor, conn):
+    print("Lista de Empleados")
+    query_lista_empleados = """
+        SELECT cedula, nombre, apellido FROM empleado
+    """
+    cursor.execute(query_lista_empleados)
+    empleados = cursor.fetchall()
+    
+    if not empleados:
+        print("No hay empleados disponibles.")
+        return
+
+    headers = ['Cédula', 'Nombre', 'Apellido']
+    print(tabulate(empleados, headers=headers, tablefmt='fancy_grid'))
+
+    cedula_empleado = input('Ingrese la cédula del empleado que desea modificar: ')
+
+    query_verificar_empleado = "SELECT COUNT(*) FROM empleado WHERE cedula = %s"
+    cursor.execute(query_verificar_empleado, (cedula_empleado,))
+    existe_empleado = cursor.fetchone()[0]
+
+    if not existe_empleado:
+        print('No se encontró un empleado con la cédula especificada.')
+        return
+
+    print('Campos disponibles para editar:')
+    print('1. Nombre')
+    print('2. Apellido')
+    print('3. Teléfono')
+    print('4. Email')
+
+    campo = obtener_entero_positivo_y_cero_input('Seleccione el campo que desea modificar (1-4): ')
+
+    if campo in [1, 2, 3, 4]:
+        if campo == 1:
+            nuevo_valor = input('Ingrese el nuevo nombre del empleado: ')
+            campo_actualizar = 'nombre'
+        elif campo == 2:
+            nuevo_valor = input('Ingrese el nuevo apellido del empleado: ')
+            campo_actualizar = 'apellido'
+        elif campo == 3:
+            nuevo_valor = verificador_telefono('Ingrese el nuevo teléfono del empleado: ')
+            campo_actualizar = 'telefono'
+        elif campo == 4:
+            nuevo_valor = input('Ingrese el nuevo email del empleado: ')
+            campo_actualizar = 'email'
+
+        query_actualizar_empleado = f"""
+            UPDATE empleado
+            SET {campo_actualizar} = %s
+            WHERE cedula = %s
+        """
+        cursor.execute(query_actualizar_empleado, (nuevo_valor, cedula_empleado))
+        conn.commit()
+        print('Datos del empleado actualizados exitosamente.')
+    else:
+        print('Opción no válida.')
+
+def añadir_empleado(cursor, conn):
+    print('Añadir Nuevo Empleado')
+
+    cedula = verificador_cedula('Ingrese la cédula del empleado (10 caracteres): ')
+    nombre = input('Ingrese el nombre del empleado: ')
+    apellido = input('Ingrese el apellido del empleado: ')
+    email = input('Ingrese el email del empleado: ')
+    telefono = verificador_telefono('Ingrese el teléfono del empleado: ')
+    id_gerente = verificador_cedula('Ingrese la cédula del gerente: ')
+
+    query_insertar_empleado = """
+        INSERT INTO empleado (cedula, nombre, apellido, email, telefono, id_gerente)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(query_insertar_empleado, (cedula, nombre, apellido, email, telefono, id_gerente))
+    conn.commit()
+    print('Empleado añadido exitosamente.')
+
+    
 
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
-menu_gerente = ['Añadir Vendedor', 'Añadir Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Salir']
+menu_gerente = ['Añadir Vendedor', 'Añadir Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
 menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Cobrar Cuota', 'Salir']
 
 
@@ -170,23 +247,12 @@ while opcion != 3:
             print('Menu Gerente')
             imprimir_menu(menu_gerente)
             opcionG = obtener_entero_positivo_y_cero_input('Ingrese una opción: ')
-            while opcionG not in [1, 2, 3, 4, 5, 6, 7, 8]:
-                opcionG = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4, 5, 6, 7 ,8): ')
+            while opcionG not in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+                opcionG = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4, 5, 6, 7, 8, 9): ')
 
             if opcionG == 1:
-                print('Escriba los datos del vendedor')
-                cedula = verificador_cedula('Cédula: ')
-                nombre = input('Nombre: ')
-                apellido = input('Apellido: ')
-                email = input('Email: ')
-                telefono = verificador_telefono('Teléfono: ')
-                id_gerente = cedulaGerente
-                add_empleado = ("INSERT INTO empleado "
-                                "(cedula, nombre, apellido, email, telefono, id_gerente) "
-                                "VALUES (%s, %s, %s, %s, %s, %s)")
-                data_empleado = (cedula, nombre, apellido, email, telefono, id_gerente)
-                cursor.execute(add_empleado, data_empleado)
-                conn.commit()
+                añadir_empleado(cursor, conn)
+              
 
             elif opcionG == 2:
                 print('Escriba los datos de la concesionaria')
@@ -399,8 +465,11 @@ while opcion != 3:
                         print("Número de selección inválido.")
                 else:
                     print("No se encontraron contratos pendientes asociados a tu cédula.")
-
+            
             elif opcionG == 8:
+                modificar_empleado(cursor, conn)
+
+            elif opcionG == 9:
                 print('Saliendo...')
                 break
 
