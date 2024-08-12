@@ -61,6 +61,89 @@ def imprimir_menu(opciones):
         print(f"{i}. {opcion}")
 
 
+def modificar_concesionaria(cursor, conn):
+    print("Lista de Concesionarias")
+    query_lista_concesionarias = """
+        SELECT id_concesionaria, nombre FROM concesionaria
+    """
+    cursor.execute(query_lista_concesionarias)
+    concesionarias = cursor.fetchall()
+    
+    if not concesionarias:
+        print("No hay concesionarias disponibles.")
+        return
+
+    headers = ['ID Concesionaria', 'Nombre']
+    print(tabulate(concesionarias, headers=headers, tablefmt='fancy_grid'))
+
+    id_concesionaria = input('Ingrese el ID de la concesionaria que desea modificar: ')
+
+    query_verificar_concesionaria = "SELECT COUNT(*) FROM concesionaria WHERE id_concesionaria = %s"
+    cursor.execute(query_verificar_concesionaria, (id_concesionaria,))
+    existe_concesionaria = cursor.fetchone()[0]
+
+    if not existe_concesionaria:
+        print('No se encontró una concesionaria con el ID especificado.')
+        return
+
+    print('Campos disponibles para editar:')
+    print('1. Nombre')
+    print('2. Teléfono')
+    print('3. Email')
+    print('4. Calle Principal')
+    print('5. Calle Secundaria')
+
+    campo = obtener_entero_positivo_y_cero_input('Seleccione el campo que desea modificar (1-5): ')
+
+    if campo in [1, 2, 3, 4, 5]:
+        if campo == 1:
+            nuevo_valor = input('Ingrese el nuevo nombre de la concesionaria: ')
+            campo_actualizar = 'nombre'
+        elif campo == 2:
+            nuevo_valor = verificador_telefono('Ingrese el nuevo teléfono de la concesionaria: ')
+            campo_actualizar = 'telefono'
+        elif campo == 3:
+            nuevo_valor = input('Ingrese el nuevo email de la concesionaria: ')
+            campo_actualizar = 'email'
+        elif campo == 4:
+            nuevo_valor = input('Ingrese la nueva calle principal de la concesionaria: ')
+            campo_actualizar = 'calle_principal'
+        elif campo == 5:
+            nuevo_valor = input('Ingrese la nueva calle secundaria de la concesionaria: ')
+            campo_actualizar = 'calle_secundaria'
+
+        query_actualizar_concesionaria = f"""
+            UPDATE concesionaria
+            SET {campo_actualizar} = %s
+            WHERE id_concesionaria = %s
+        """
+        cursor.execute(query_actualizar_concesionaria, (nuevo_valor, id_concesionaria))
+        conn.commit()
+        print('Datos de la concesionaria actualizados exitosamente.')
+    else:
+        print('Opción no válida.')
+
+def añadir_concesionaria(cursor, conn):
+    print('Añadir Nueva Concesionaria')
+    
+    id_concesionaria = input('Ingrese el id de la concesionaria: ')
+    nombre = input('Ingrese el nombre de la concesionaria: ')
+    telefono = verificador_telefono('Ingrese el teléfono de la concesionaria: ')
+    email = input('Ingrese el email de la concesionaria: ')
+    calle_principal = input('Ingrese la calle principal de la concesionaria: ')
+    calle_secundaria = input('Ingrese la calle secundaria de la concesionaria: ')
+    
+    query_insertar_concesionaria = """
+        INSERT INTO concesionaria (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(query_insertar_concesionaria, (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria))
+    conn.commit()
+    print('Concesionaria añadida exitosamente.')
+
+    
+    
+    
 # Función para consultar y/o editar un cliente
 def revisar_o_editar_cliente():
     # Consultar la lista de clientes del vendedor
@@ -230,7 +313,7 @@ def añadir_empleado(cursor, conn):
     
 
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
-menu_gerente = ['Añadir Vendedor', 'Añadir Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
+menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
 menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Cobrar Cuota', 'Salir']
 
 
@@ -251,24 +334,21 @@ while opcion != 3:
                 opcionG = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4, 5, 6, 7, 8, 9): ')
 
             if opcionG == 1:
-                añadir_empleado(cursor, conn)
-              
+                añadir_empleado(cursor, conn)                   
+
 
             elif opcionG == 2:
-                print('Escriba los datos de la concesionaria')
-                id_concesionaria = obtener_entero_positivo_y_cero_input('ID_Concesionaria: ')
-                nombre = input('Nombre: ')
-                telefono = verificador_telefono('Teléfono: ')
-                email = input('Email: ')
-                calle_principal = input('Calle Principal: ')
-                calle_secundaria = input('Calle Secundaria: ')
-
-                add_concesionaria = ("INSERT INTO concesionaria "
-                                     "(id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria) "
-                                     "VALUES (%s, %s, %s, %s, %s, %s)")
-                data_concesionaria = (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria)
-                cursor.execute(add_concesionaria, data_concesionaria)
-                conn.commit()
+                print('Seleccione la acción deseada:')
+                print('1. Añadir Concesionaria')
+                print('2. Modificar Concesionaria')
+                accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
+                
+                if accion == 1:
+                    añadir_concesionaria(cursor, conn)
+                elif accion == 2:
+                    modificar_concesionaria(cursor, conn)
+                else:
+                    print('Opción no válida.')
 
             elif opcionG == 3:
                 print('Creacion de Grupos')
