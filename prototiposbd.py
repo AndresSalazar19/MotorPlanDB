@@ -60,6 +60,98 @@ def imprimir_menu(opciones):
     for i, opcion in enumerate(opciones, 1):
         print(f"{i}. {opcion}")
 
+
+# Función para consultar y/o editar un cliente
+def revisar_o_editar_cliente():
+    # Consultar la lista de clientes del vendedor
+    query_clientes = """
+        SELECT cedula, nombre, apellido 
+        FROM cliente 
+        WHERE id_vendedor = %s
+    """
+    cursor.execute(query_clientes, (cedulaVendedor,))
+    clientes = cursor.fetchall()
+    tabla_clientes = []
+    for i, (cedula, nombre, apellido) in enumerate(clientes, start=1):
+        tabla_clientes.append([i, nombre, apellido, cedula])
+    headers = ['Número', 'Nombre', 'Apellido', 'Cédula']
+
+    if tabla_clientes:
+        print("Lista de Clientes:")
+        print(tabulate(tabla_clientes, headers=headers, tablefmt='fancy_grid'))
+        try:
+            seleccion = int(input("Selecciona el número del cliente: "))
+            if 1 <= seleccion <= len(clientes):
+                cedulaSeleccionada = clientes[seleccion - 1][0]
+                print(f"\nDetalles del Cliente Seleccionado:")
+                print(f"Nombre: {clientes[seleccion - 1][1]} {clientes[seleccion - 1][2]}")
+                print(f"Cédula: {cedulaSeleccionada}")
+
+                # Menú para consultar o editar
+                opciones = ["Consultar Cliente", "Editar o Eliminar Cliente", "Salir"]
+                imprimir_menu(opciones)
+                opcion = obtener_entero_positivo_y_cero_input("Seleccione una opción: ")
+
+                if opcion == 1:
+                    # Solo consulta de datos
+                    query_proformas = """
+                        SELECT p.id_proforma, p.marca, p.costo, c.nombre AS concesionaria_nombre
+                        FROM proforma p
+                        JOIN concesionaria c ON p.id_concesionaria = c.id_concesionaria
+                        WHERE p.cedula_cliente = %s
+                    """
+                    cursor.execute(query_proformas, (cedulaSeleccionada,))
+                    proformas = cursor.fetchall()
+                    tabla_proformas = []
+                    for id_proforma, marca, costo, concesionaria_nombre in proformas:
+                        tabla_proformas.append([id_proforma, concesionaria_nombre, marca, costo])
+                    headers_proformas = ['ID Proforma', 'Nombre Concesionaria', 'Marca', 'Costo']
+                    if tabla_proformas:
+                        print("\nProformas Asociadas:")
+                        print(tabulate(tabla_proformas, headers=headers_proformas, tablefmt='fancy_grid'))
+                    else:
+                        print("No hay proformas asociadas a este cliente.")
+                
+                elif opcion == 2:
+                    # Edición de cliente
+                    print('Campos disponibles para editar:')
+                    print('1. Calle Principal')
+                    print('2. Calle Secundaria')
+                    print('3. Email')
+                    print('4. Teléfono')
+                    print('5. Nombre')
+                    print('6. Apellido')
+                    campo = obtener_entero_positivo_y_cero_input('Seleccione el campo que desea modificar (1-6): ')
+
+                    if campo in [1, 2, 3, 4, 5, 6]:
+                        nuevo_valor = input('Ingrese el nuevo valor: ')
+                        campos = ['calle_principal', 'calle_secundaria', 'email', 'telefono', 'nombre', 'apellido']
+                        campo_actualizar = campos[campo-1]
+                        query_actualizar_cliente = f"UPDATE cliente SET {campo_actualizar} = %s WHERE cedula = %s"
+                        cursor.execute(query_actualizar_cliente, (nuevo_valor, cedulaSeleccionada))
+                        conn.commit()
+                        print('Datos del cliente actualizados exitosamente.')
+                    
+                    # Submenú para eliminar cliente
+                    print("¿Desea eliminar este cliente?")
+                    eliminar_opcion = input("Escriba 'si' para eliminar o 'no' para salir: ").strip().lower()
+                    if eliminar_opcion == 'si':
+                        query_eliminar_cliente = "DELETE FROM cliente WHERE cedula = %s"
+                        cursor.execute(query_eliminar_cliente, (cedulaSeleccionada,))
+                        conn.commit()
+                        print('Cliente eliminado exitosamente.')
+
+                elif opcion == 3:
+                    print('Saliendo...')
+                    return
+            else:
+                print("Número de selección inválido.")
+        except ValueError:
+            print("Entrada inválida. Por favor, introduce un número entero.")
+    else:
+        print("No se encontraron clientes para el vendedor con cédula proporcionada.")
+
+
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Añadir Concesionaria', 'Crear Grupo', 'Revisar Ventas', 'Revisar Vendedores', 'Añadir Proformas', 'Revisar Contratos','Salir']
 menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Cobrar Cuota', 'Salir']
@@ -330,12 +422,16 @@ while opcion != 3:
                 print('Añadir Cliente')
                 print('Escriba los datos del cliente aqui: ')
                 cedula = verificador_cedula('Cedula cliente: ')
+                
+                # Verificar si el cliente ya existe
                 query_check = "SELECT COUNT(*) FROM cliente WHERE cedula = %s"
                 cursor.execute(query_check, (cedula,))
                 resultado = cursor.fetchone()
+
                 if resultado[0] > 0:
                     print('El cliente con esta cédula ya existe en la base de datos.')
                 else:
+                    # Solicitar datos del cliente
                     calle_principal = input('Calle Principal: ')
                     calle_secundaria = input('Calle Secundaria: ')
                     email = input('Email: ')
@@ -343,6 +439,8 @@ while opcion != 3:
                     nombre = input('Nombre: ')
                     apellido = input('Apellido: ')
                     id_vendedor = cedulaVendedor
+
+                    # Insertar cliente en la base de datos
                     add_cliente = ("INSERT INTO cliente "
                                          "(cedula, calle_principal, calle_secundaria, "
                                    "email, telefono, nombre, apellido, id_vendedor) "
@@ -352,20 +450,26 @@ while opcion != 3:
                     cursor.execute(add_cliente, data_cliente)
                     conn.commit()
                     print('Cliente añadido existosamente.')
+
+                    # Añadir datos del garante
                     print('----Informacion del Garante----')
                     cedulaGarante = verificador_cedula('Cedula del Garante: ')
                     nombreGarante = input('Nombre: ')
                     apellidoGarante = input('Apellido: ')
                     telefonoGarante = input('Telefono: ')
                     emailGarante = input('Email: ')
+
+                    # Verificar si el garante ya existe
                     check_garante_query = """
                     SELECT cedula FROM garante WHERE cedula = %s
                     """
                     cursor.execute(check_garante_query, (cedulaGarante,))
                     resultado = cursor.fetchone()
+
                     if resultado:
                         print('El garante con esta cédula ya existe en la base de datos.')
                     else:
+                        # Insertar garante en la base de datos
                         add_garante_query = """
                         INSERT INTO garante (cedula, id_participante, nombres, apellidos, telefono, email)
                         VALUES (%s, %s, %s, %s, %s, %s)
@@ -430,55 +534,7 @@ while opcion != 3:
                     print('Contrato generado exitosamente.')
                     pass
             elif opcionV == 2:
-                print('Revisar Cliente')
-                query_clientes = """
-                    SELECT cedula, nombre, apellido 
-                    FROM cliente 
-                    WHERE id_vendedor = %s
-                """
-                cursor.execute(query_clientes, (cedulaVendedor,))
-                clientes = cursor.fetchall()
-                tabla_clientes = []
-                for i, (cedula, nombre, apellido) in enumerate(clientes, start=1):
-                    tabla_clientes.append([i, nombre, apellido, cedula])
-                headers = ['Número', 'Nombre', 'Apellido', 'Cédula']
-                if tabla_clientes:
-                    print("Lista de Clientes:")
-                    print(tabulate(tabla_clientes, headers=headers, tablefmt='fancy_grid'))
-                    try:
-                        seleccion = int(input("Selecciona el número del cliente: "))
-                        if 1 <= seleccion <= len(clientes):
-                            cedulaSeleccionada = clientes[seleccion - 1][0]
-                            query_proformas = """
-                                SELECT p.id_proforma, p.marca, p.costo, c.nombre AS concesionaria_nombre
-                                FROM proforma p
-                                JOIN concesionaria c ON p.id_concesionaria = c.id_concesionaria
-                                WHERE p.cedula_cliente = %s
-                            """
-                            cursor.execute(query_proformas, (cedulaSeleccionada,))
-                            proformas = cursor.fetchall()
-                            print(f"\nDetalles del Cliente Seleccionado:")
-                            print(f"Nombre: {clientes[seleccion - 1][1]} {clientes[seleccion - 1][2]}")
-                            print(f"Cédula: {cedulaSeleccionada}")
-                            tabla_proformas = []
-                            for id_proforma, marca, costo, concesionaria_nombre in proformas:
-                                tabla_proformas.append([id_proforma, concesionaria_nombre, marca, costo])
-                            headers_proformas = ['ID Proforma', 'Nombre Concesionaria', 'Marca', 'Costo']
-                            if tabla_proformas:
-                                print("\nProformas Asociadas:")
-                                print(tabulate(tabla_proformas, headers=headers_proformas, tablefmt='fancy_grid'))
-                            else:
-                                print("No hay proformas asociadas a este cliente.")
-
-                        else:
-                            print("Número de selección inválido.")
-                    except ValueError:
-                        print("Entrada inválida. Por favor, introduce un número entero.")
-                else:
-                    print("No se encontraron clientes para el vendedor con cédula proporcionada.")
-
-                pass
-
+                revisar_o_editar_cliente()
             elif opcionV == 3:
                 print('Cobro de cuotas')
             elif opcionV == 4:
