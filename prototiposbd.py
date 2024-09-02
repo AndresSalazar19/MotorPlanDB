@@ -698,9 +698,9 @@ while opcion != 3:
 
                 if fecha_pago:
                     insertar_cuota(cursor, conn, id_cuota, id_cliente, id_contrato, valor_cuota, fecha_pago)
-            elif opcionV == 5:
-                mostrar_modelos_mascotizados(cursor)
             elif opcionV == 4:
+                mostrar_modelos_mascotizados(cursor)
+            elif opcionV == 5:
                 print('Saliendo...')
                 break
             salir_menu_vendedor = input('¿Desea salir del menú Vendedor? (s/n): ').strip().lower()
