@@ -54,7 +54,6 @@ def actualizar_cuota(cursor, conn, id_cuota, id_cliente, id_contrato, valor_cuot
         print(f"Error: {err}")
         conn.rollback()
 
-
 def eliminar_cuota(cursor, conn, id_cuota):
     try:
         cursor.callproc('EliminarCuota', (id_cuota,))
@@ -77,7 +76,6 @@ def insertar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, ema
             print(f"Error inesperado: {err}")
         conn.rollback()
 
-
 def actualizar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria):
     try:
         cursor.callproc('ActualizarConcesionaria', (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria))
@@ -86,8 +84,6 @@ def actualizar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, e
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
-
 def eliminar_concesionaria(cursor, conn, id_concesionaria):
     try:
         cursor.callproc('EliminarConcesionaria', (id_concesionaria,))
@@ -107,8 +103,6 @@ def insertar_proforma(cursor, conn, id_proforma, id_concesionaria, fecha, modelo
         else:
             print(f"Error inesperado: {err}")
         conn.rollback()
-
-
 def actualizar_proforma(cursor, conn, id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio):
     try:
         cursor.callproc('ActualizarProforma', (id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio))
@@ -117,7 +111,6 @@ def actualizar_proforma(cursor, conn, id_proforma, id_concesionaria, fecha, mode
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
 
 def eliminar_proforma(cursor, conn, id_proforma):
     try:
@@ -164,7 +157,7 @@ def insertar_empleado(cursor, conn, cedula, nombre, apellido, telefono, email, i
         conn.commit()
         print('Empleado añadido exitosamente.')
     except mysql.connector.Error as err:
-        if err.errno == 1644:  # 1644 es el código de error para SIGNAL SQLSTATE '45000'
+        if err.errno == 1644:  
             print(f"Error: {err.msg}")
         else:
             print(f"Error inesperado: {err}")
@@ -226,7 +219,6 @@ def insertar_detalle_grupo(cursor, conn, id_grupo, id_cliente, contrato):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
 
 def actualizar_detalle_grupo(cursor, conn, id_grupo, id_cliente, contrato):
     try:
@@ -290,7 +282,6 @@ def eliminar_sorteo(cursor, conn, id_sorteo):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
 
 def actualizar_cliente(cursor, conn, cedula):
     calle_principal = input('Calle Principal: ')
@@ -380,7 +371,6 @@ def consulta_externa(cursor):
         print(f"Error: {err}")
     pass
 
-
 def revisar_grupos(cursor, cedulaGerente):
     query = """
     SELECT g.id_grupo, g.id_gerente, g.Chanchito, g.Precio_desde, g.Precio_hasta, g.Tipo
@@ -468,7 +458,7 @@ while opcion != 3:
                 print("Añadir empleados")
                 print("Completa los siguientes campos para continuar: ")
                 cedula = verificador_cedula("Cedula: ")
-                telefono = verificador_telefono
+                telefono = verificador_telefono("Telefono: ")
                 id_gerente = cedulaGerente
                 nombre = input("Nombre: ")
                 apellido = input("Apellido: ")
