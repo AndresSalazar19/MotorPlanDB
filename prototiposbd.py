@@ -1,7 +1,7 @@
 import mysql.connector
 from tabulate import tabulate
 import random
-
+import time as tm
 config = {
     'user': 'adminGrupo4',
     'password': '8396Quinde',
@@ -32,7 +32,9 @@ def eliminar_cliente(cursor, conn, cedula):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
+def imprimir_menu(opciones):
+    for i, opcion in enumerate(opciones, 1):
+        print(f"{i}. {opcion}")
 
 def insertar_cuota(cursor, conn, id_cuota, id_cliente, id_contrato, valor_cuota, fecha_pago):
     try:
@@ -305,7 +307,7 @@ def actualizar_cliente(cursor, conn, cedula):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-        
+
 def obtener_entero_positivo_y_cero_input(mensaje):
     while True:
         try:
@@ -350,37 +352,35 @@ def verificador_telefono(mensaje):
             return telefono
         else:
             print("Número de teléfono inválido. Debe ser de longitud 10, comenzar con '0' y contener solo dígitos. Intenta de nuevo.")
-def imprimir_menu(opciones):    
-    for i, opcion in enumerate(opciones, 1):
-        print(f"{i}. {opcion}")
 
-def consulta_externa():
-    opciones = ["Verificar Cédula", "Consultar Cliente"]
-    imprimir_menu(opciones)
-    opcion = obtener_entero_positivo_y_cero_input("Seleccione una opción: ")
-
-    if opcion == 1:
-        cedula = verificador_cedula("Ingrese la cédula del cliente: ")
-        cursor.callproc('verificar_cedula_cliente', [cedula])
-        result = None
-        for resultado in cursor.stored_results():
-            result = resultado.fetchone()
-        if result:
-            print(f"Resultado de la verificación: {result[0]}")
+def consulta_externa(cursor):
+    cedula = verificador_cedula("Ingrese su cédula: ")
+    print("Seleccione una opción:")
+    print("0. Ver contratos")
+    print("1. Ver pagos")
+    opcion = obtener_entero_positivo_y_cero_input("Ingrese el número de la opción deseada: ")
+    try:
+        if opcion == 0:
+            cursor.callproc('consultaCliente', [cedula])
+            result = cursor.stored_results()
+            for r in result:
+                rows = r.fetchall()
+                print(tabulate(rows, headers=[i[0] for i in r.description], tablefmt='fancy_grid'))
+        
+        elif opcion == 1:
+            id_contrato = input("Ingrese el ID del contrato: ")
+            cursor.callproc('consultasPagos', [cedula, id_contrato])
+            result = cursor.stored_results()
+            for r in result:
+                rows = r.fetchall()
+                print(tabulate(rows, headers=[i[0] for i in r.description], tablefmt='fancy_grid'))
         else:
-            print("No se encontró información para la cédula proporcionada.")
+            print("Opción no válida.")
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+    pass
 
-    elif opcion == 2:
-        cedula = verificador_cedula("Ingrese la cédula del cliente: ")
-        cursor.callproc('consultar_cliente', [cedula])
-        result = None
-        for resultado in cursor.stored_results():
-            result = resultado.fetchall()
-        if result:
-            headers = ["Campo", "Valor"]
-            print(tabulate(result, headers=headers, tablefmt='fancy_grid'))
-        else:
-            print("No se encontró información para la cédula proporcionada.")  
+
 def revisar_grupos(cursor, cedulaGerente):
     query = """
     SELECT g.id_grupo, g.id_gerente, g.Chanchito, g.Precio_desde, g.Precio_hasta, g.Tipo
@@ -418,6 +418,20 @@ def insertar_cuota(cursor, conn, id_cuota, id_cliente, id_contrato, valor_cuota,
             print(f"Error inesperado: {err}")
         conn.rollback()
 
+def insertar_grupo(cursor, conn, id_grupo, id_gerente, chanchito, precio_desde, precio_hasta):
+    try:
+        cursor.callproc('InsertarGrupo', (id_grupo, id_gerente, chanchito, precio_desde, precio_hasta))
+        conn.commit()
+        print('Grupo añadido exitosamente.')
+    except mysql.connector.Error as err:
+        if err.errno == 1644:
+            print(f"Error: {err.msg}")
+        else:
+            print(f"Error inesperado: {err}")
+        conn.rollback()
+
+
+
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Salir']
 menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Gestionar Cuotas', 'Salir']
@@ -425,7 +439,10 @@ menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Gestionar Cuotas', 'Sali
 
 opcion = 0
 while opcion != 3:
-    imprimir_menu(menu_principal)
+    print("1 Gerente")
+    print("2 Empleado")
+    print("3 Consulta Externa")
+    print("4 Salir")
     opcion = obtener_entero_positivo_y_cero_input('Ingrese una opción: ')
     while opcion not in [1, 2, 3]:
         opcion = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3): ')
@@ -681,7 +698,7 @@ while opcion != 3:
                 break
 
     elif opcion == 3:
-        consulta_externa()
+        consulta_externa(cursor)
 
     elif opcion == 4:
         print('Salir')
