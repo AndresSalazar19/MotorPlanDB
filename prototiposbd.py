@@ -23,13 +23,6 @@ def insertar_cliente(cursor, conn, cedula, calle_principal, calle_secundaria, em
         else:
             print(f"Error inesperado: {err}")
         conn.rollback()
-    try:
-        cursor.callproc('InsertarCliente', (cedula, calle_principal, calle_secundaria, email, telefono, nombre, apellido, id_vendedor))
-        conn.commit()
-        print('Cliente añadido exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
 
 def eliminar_cliente(cursor, conn, cedula):
     try:
@@ -81,13 +74,6 @@ def insertar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, ema
         else:
             print(f"Error inesperado: {err}")
         conn.rollback()
-    try:
-        cursor.callproc('InsertarConcesionaria', (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria))
-        conn.commit()
-        print('Concesionaria añadida exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
 
 
 def actualizar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria):
@@ -108,7 +94,6 @@ def eliminar_concesionaria(cursor, conn, id_concesionaria):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
 def insertar_proforma(cursor, conn, id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio):
     try:
         cursor.callproc('InsertarProforma', (id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio))
@@ -119,13 +104,6 @@ def insertar_proforma(cursor, conn, id_proforma, id_concesionaria, fecha, modelo
             print(f"Error: {err.msg}")
         else:
             print(f"Error inesperado: {err}")
-        conn.rollback()
-    try:
-        cursor.callproc('InsertarProforma', (id_proforma, id_concesionaria, fecha, modelo, marca, color, costo, anio))
-        conn.commit()
-        print('Proforma añadida exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
         conn.rollback()
 
 
@@ -159,13 +137,6 @@ def insertar_contrato(cursor, conn, id_contrato, id_gerente, id_garante, id_clie
         else:
             print(f"Error inesperado: {err}")
         conn.rollback()
-    try:
-        cursor.callproc('InsertarContrato', (id_contrato, id_gerente, id_garante, id_cliente, id_proforma, descripcion, cuotas_totales, valor_cuota, fecha_firma, estado, id_vendedor))
-        conn.commit()
-        print('Contrato generado exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
 
 def actualizar_contrato(cursor, conn, id_contrato, id_gerente, id_grupo, id_proforma, descripcion, valor_cuota, cuotas_totales, fecha_firma, estado, id_vendedor):
     try:
@@ -191,17 +162,10 @@ def insertar_empleado(cursor, conn, cedula, nombre, apellido, telefono, email, i
         conn.commit()
         print('Empleado añadido exitosamente.')
     except mysql.connector.Error as err:
-        if err.errno == 1644:
+        if err.errno == 1644:  # 1644 es el código de error para SIGNAL SQLSTATE '45000'
             print(f"Error: {err.msg}")
         else:
             print(f"Error inesperado: {err}")
-        conn.rollback()
-    try:
-        cursor.callproc('InsertarEmpleado', (cedula, nombre, apellido, telefono, email, id_gerente))
-        conn.commit()
-        print('Empleado añadido exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
         conn.rollback()
 
 def actualizar_empleado(cursor, conn, cedula, nombre, apellido, telefono, email):
@@ -232,13 +196,6 @@ def insertar_garante(cursor, conn, cedula, id_participante, nombres, apellidos, 
             print(f"Error: {err.msg}")
         else:
             print(f"Error inesperado: {err}")
-        conn.rollback()
-    try:
-        cursor.callproc('InsertarGarante', (cedula, id_participante, nombres, apellidos, telefono, email))
-        conn.commit()
-        print('Garante añadido exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
         conn.rollback()
 
 def actualizar_garante(cursor, conn, cedula, id_participante, nombres, apellidos, telefono, email):
@@ -283,25 +240,6 @@ def eliminar_detalle_grupo(cursor, conn, id_grupo, id_cliente):
         cursor.callproc('EliminarDetalleGrupo', (id_grupo, id_cliente))
         conn.commit()
         print('Detalle de grupo eliminado exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
-
-def insertar_grupo(cursor, conn, id_grupo, id_gerente, chanchito, precio_desde, precio_hasta):
-    try:
-        cursor.callproc('InsertarGrupo', (id_grupo, id_gerente, chanchito, precio_desde, precio_hasta))
-        conn.commit()
-        print('Grupo añadido exitosamente.')
-    except mysql.connector.Error as err:
-        if err.errno == 1644:
-            print(f"Error: {err.msg}")
-        else:
-            print(f"Error inesperado: {err}")
-        conn.rollback()
-    try:
-        cursor.callproc('InsertarGrupo', (id_grupo, id_gerente, chanchito, precio_desde, precio_hasta))
-        conn.commit()
-        print('Grupo añadido exitosamente.')
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
@@ -351,57 +289,6 @@ def eliminar_sorteo(cursor, conn, id_sorteo):
         print(f"Error: {err}")
         conn.rollback()
 
-def añadir_cliente(cursor, conn, cedulaVendedor):
-    cedula = verificador_cedula('Cedula cliente: ')
-    
-    calle_principal = input('Calle Principal: ')
-    calle_secundaria = input('Calle Secundaria: ')
-    email = input('Email: ')
-    telefono = verificador_telefono('Teléfono: ')
-    nombre = input('Nombre: ')
-    apellido = input('Apellido: ')
-    
-    try:
-        cursor.callproc('InsertarCliente', (cedula, calle_principal, calle_secundaria, email, telefono, nombre, apellido, cedulaVendedor))
-        conn.commit()
-        print('Cliente añadido exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
-
-def añadir_garante(cursor, conn, cedula_cliente):
-    cedulaGarante = verificador_cedula('Cedula del Garante: ')
-    nombreGarante = input('Nombre: ')
-    apellidoGarante = input('Apellido: ')
-    telefonoGarante = input('Telefono: ')
-    emailGarante = input('Email: ')
-    
-    try:
-        cursor.callproc('InsertarGarante', (cedulaGarante, cedula_cliente, nombreGarante, apellidoGarante, telefonoGarante, emailGarante))
-        conn.commit()
-        print('Garante añadido exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
-
-def añadir_contrato(cursor, conn, id_vendedor, id_cliente, id_proforma):
-    id_contrato = obtener_entero_positivo_y_cero_input('ID del Contrato: ')
-    id_gerente = input('Cedula de tu gerente: ')
-    id_garante = verificador_cedula('Cedula del Garante: ')
-    descripcion = 'Bla bla cosas legales que solo los abogados y notarios entienden bla bla'
-    cuotas_totales = obtener_entero_positivo_y_cero_input('Cuantas cuotas pagara: ')
-    valor_cuota = float(input('Costo total dividido por cuotas: '))
-    fecha_firma = input('Fecha (año-mes-dia): ')
-    estado = 'Pendiente'
-    
-    try:
-        cursor.callproc('InsertarContrato', (id_contrato, id_gerente, id_garante, id_cliente, id_proforma, descripcion, cuotas_totales, valor_cuota, fecha_firma, estado, id_vendedor))
-        conn.commit()
-        print('Contrato generado exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
-
 
 def actualizar_cliente(cursor, conn, cedula):
     calle_principal = input('Calle Principal: ')
@@ -418,76 +305,7 @@ def actualizar_cliente(cursor, conn, cedula):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         conn.rollback()
-
-
-def eliminar_cliente(cursor, conn, cedula):
-    try:
-        cursor.callproc('EliminarCliente', (cedula,))
-        conn.commit()
-        print('Cliente eliminado exitosamente.')
-    except mysql.connector.Error as err:
-        print(f"Error: {err}")
-        conn.rollback()
-
-
-def crear_grupo(cursor, conn, cedulaGerente):
-    # Paso 1: Obtener datos para el nuevo grupo
-    id_grupo = input('Ingrese el ID del nuevo grupo: ')
-    id_gerente = cedulaGerente
-    
-    query_clientes_vigentes = """
-        SELECT c.id_cliente, p.costo
-        FROM contrato c
-        JOIN proforma p ON c.id_proforma = p.id_proforma
-        WHERE c.estado = 'Vigente'
-    """
-    cursor.execute(query_clientes_vigentes)
-    clientes_vigentes = cursor.fetchall()
-    
-    if not clientes_vigentes:
-        print("No hay clientes con contratos vigentes.")
-        return
-    
-    query_clientes_en_grupo = """
-        SELECT id_cliente
-        FROM detalle_grupo
-    """
-    cursor.execute(query_clientes_en_grupo)
-    clientes_en_grupo = {cliente[0] for cliente in cursor.fetchall()}
-    
-    clientes_no_en_grupo = [cliente for cliente in clientes_vigentes if cliente[0] not in clientes_en_grupo]
-
-    if not clientes_no_en_grupo:
-        print("Todos los clientes con contratos vigentes ya están en un grupo.")
-        return
-    
-    rango_minimo = float(input('Ingrese el costo mínimo del rango: '))
-    rango_maximo = float(input('Ingrese el costo máximo del rango: '))
-    
-    clientes_seleccionados = [cliente for cliente in clientes_no_en_grupo if rango_minimo <= cliente[1] <= rango_maximo]
-
-    if len(clientes_seleccionados) < 5:
-        print("No hay suficientes clientes en el rango de costos especificado para formar un grupo.")
-        return
-    
-    clientes_aleatorios = random.sample(clientes_seleccionados, 5)
-    
-    query_insertar_grupo = """
-        INSERT INTO grupo (id_grupo, id_gerente, id_ganador)
-        VALUES (%s, %s, NULL)
-    """
-    cursor.execute(query_insertar_grupo, (id_grupo, id_gerente))
-    conn.commit()
-    
-    query_insertar_detalle_grupo = """
-        INSERT INTO detalle_grupo (id_grupo, id_cliente, fecha_sorteo)
-        VALUES (%s, %s, NULL)
-    """
-    for cliente in clientes_aleatorios:
-        cursor.execute(query_insertar_detalle_grupo, (id_grupo, cliente[0]))
-    
-    conn.commit()
-    print('Grupo creado y clientes añadidos exitosamente.')
+        
 def obtener_entero_positivo_y_cero_input(mensaje):
     while True:
         try:
@@ -562,200 +380,7 @@ def consulta_externa():
             headers = ["Campo", "Valor"]
             print(tabulate(result, headers=headers, tablefmt='fancy_grid'))
         else:
-            print("No se encontró información para la cédula proporcionada.")
-
-
-    # Obtener los grupos asociados al cedulaGerente
-    query_grupos = """
-        SELECT g.id_grupo
-        FROM grupo g
-        WHERE g.id_gerente = %s
-    """
-    cursor.execute(query_grupos, (cedulaGerente,))
-    grupos = cursor.fetchall()
-    
-    if not grupos:
-        print('No hay grupos disponibles para el gerente con la cédula proporcionada.')
-        return
-    
-    # Mostrar los grupos disponibles para el gerente
-    print('Grupos disponibles para editar o eliminar:')
-    headers = ['ID Grupo']
-    print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
-    
-    id_grupo = input('Ingrese el ID del grupo que desea editar o del que desea eliminar un registro: ')
-    
-    # Verificar si el grupo pertenece al gerente
-    query_verificar_grupo = """
-        SELECT COUNT(*)
-        FROM grupo
-        WHERE id_grupo = %s AND id_gerente = %s
-    """
-    cursor.execute(query_verificar_grupo, (id_grupo, cedulaGerente))
-    existe_grupo = cursor.fetchone()[0]
-    
-    if not existe_grupo:
-        print('No se encontró un grupo con el ID especificado o el grupo no pertenece al gerente proporcionado.')
-        return
-    
-    print('Seleccione la opción que desea realizar:')
-    print('1. Editar ID del grupo')
-    print('2. Editar ID del gerente')
-    print('3. Eliminar cliente del grupo')
-    print('4. Eliminar grupo')
-    
-    opcion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-4): ')
-    
-    if opcion == 1:
-        nuevo_id_grupo = input('Ingrese el nuevo ID del grupo: ')
-        query_editar_id_grupo = """
-            UPDATE grupo
-            SET id_grupo = %s
-            WHERE id_grupo = %s
-        """
-        cursor.execute(query_editar_id_grupo, (nuevo_id_grupo, id_grupo))
-        conn.commit()
-        print('ID del grupo actualizado exitosamente.')
-
-    elif opcion == 2:
-        nuevo_id_gerente = input('Ingrese el nuevo ID del gerente: ')
-        query_editar_id_gerente = """
-            UPDATE grupo
-            SET id_gerente = %s
-            WHERE id_grupo = %s
-        """
-        cursor.execute(query_editar_id_gerente, (nuevo_id_gerente, id_grupo))
-        conn.commit()
-        print('ID del gerente actualizado exitosamente.')
-
-    elif opcion == 3:
-        id_cliente = input('Ingrese el ID del cliente que desea eliminar del grupo: ')
-        query_eliminar_cliente = """
-            DELETE FROM detalle_grupo
-            WHERE id_grupo = %s AND id_cliente = %s
-        """
-        cursor.execute(query_eliminar_cliente, (id_grupo, id_cliente))
-        conn.commit()
-        print('Cliente eliminado del grupo exitosamente.')
-
-    elif opcion == 4:
-        query_eliminar_grupo = """
-            DELETE FROM grupo
-            WHERE id_grupo = %s
-        """
-        cursor.execute(query_eliminar_grupo, (id_grupo,))
-        conn.commit()
-        print('Grupo eliminado exitosamente.')
-    else:
-        print('Opción no válida.')
-
-
-    print('Añadir Nueva Concesionaria')
-    
-    id_concesionaria = input('Ingrese el id de la concesionaria: ')
-    nombre = input('Ingrese el nombre de la concesionaria: ')
-    telefono = verificador_telefono('Ingrese el teléfono de la concesionaria: ')
-    email = input('Ingrese el email de la concesionaria: ')
-    calle_principal = input('Ingrese la calle principal de la concesionaria: ')
-    calle_secundaria = input('Ingrese la calle secundaria de la concesionaria: ')
-    
-    query_insertar_concesionaria = """
-        INSERT INTO concesionaria (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """
-    cursor.execute(query_insertar_concesionaria, (id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria))
-    conn.commit()
-    print('Concesionaria añadida exitosamente.')
-
-    # Función para consultar y/o editar un cliente
-    def revisar_o_editar_cliente():
-        # Consultar la lista de clientes del vendedor
-        query_clientes = """
-            SELECT cedula, nombre, apellido 
-            FROM cliente 
-            WHERE id_vendedor = %s
-        """
-        cursor.execute(query_clientes, (cedulaVendedor,))
-        clientes = cursor.fetchall()
-        tabla_clientes = []
-        for i, (cedula, nombre, apellido) in enumerate(clientes, start=1):
-            tabla_clientes.append([i, nombre, apellido, cedula])
-        headers = ['Número', 'Nombre', 'Apellido', 'Cédula']
-
-        if tabla_clientes:
-            print("Lista de Clientes:")
-            print(tabulate(tabla_clientes, headers=headers, tablefmt='fancy_grid'))
-            try:
-                seleccion = int(input("Selecciona el número del cliente: "))
-                if 1 <= seleccion <= len(clientes):
-                    cedulaSeleccionada = clientes[seleccion - 1][0]
-                    print(f"\nDetalles del Cliente Seleccionado:")
-                    print(f"Nombre: {clientes[seleccion - 1][1]} {clientes[seleccion - 1][2]}")
-                    print(f"Cédula: {cedulaSeleccionada}")
-
-                    # Menú para consultar o editar
-                    opciones = ["Consultar Cliente", "Editar o Eliminar Cliente", "Salir"]
-                    imprimir_menu(opciones)
-                    opcion = obtener_entero_positivo_y_cero_input("Seleccione una opción: ")
-
-                    if opcion == 1:
-                        # Solo consulta de datos
-                        query_proformas = """
-                            SELECT p.id_proforma, p.marca, p.costo, c.nombre AS concesionaria_nombre
-                            FROM proforma p
-                            JOIN concesionaria c ON p.id_concesionaria = c.id_concesionaria
-                            WHERE p.cedula_cliente = %s
-                        """
-                        cursor.execute(query_proformas, (cedulaSeleccionada,))
-                        proformas = cursor.fetchall()
-                        tabla_proformas = []
-                        for id_proforma, marca, costo, concesionaria_nombre in proformas:
-                            tabla_proformas.append([id_proforma, concesionaria_nombre, marca, costo])
-                        headers_proformas = ['ID Proforma', 'Nombre Concesionaria', 'Marca', 'Costo']
-                        if tabla_proformas:
-                            print("\nProformas Asociadas:")
-                            print(tabulate(tabla_proformas, headers=headers_proformas, tablefmt='fancy_grid'))
-                        else:
-                            print("No hay proformas asociadas a este cliente.")
-                    
-                    elif opcion == 2:
-                        # Edición de cliente
-                        print('Campos disponibles para editar:')
-                        print('1. Calle Principal')
-                        print('2. Calle Secundaria')
-                        print('3. Email')
-                        print('4. Teléfono')
-                        print('5. Nombre')
-                        print('6. Apellido')
-                        campo = obtener_entero_positivo_y_cero_input('Seleccione el campo que desea modificar (1-6): ')
-
-                        if campo in [1, 2, 3, 4, 5, 6]:
-                            nuevo_valor = input('Ingrese el nuevo valor: ')
-                            campos = ['calle_principal', 'calle_secundaria', 'email', 'telefono', 'nombre', 'apellido']
-                            campo_actualizar = campos[campo-1]
-                            query_actualizar_cliente = f"UPDATE cliente SET {campo_actualizar} = %s WHERE cedula = %s"
-                            cursor.execute(query_actualizar_cliente, (nuevo_valor, cedulaSeleccionada))
-                            conn.commit()
-                            print('Datos del cliente actualizados exitosamente.')
-                        
-                        # Submenú para eliminar cliente
-                        print("¿Desea eliminar este cliente?")
-                        eliminar_opcion = input("Escriba 'si' para eliminar o 'no' para salir: ").strip().lower()
-                        if eliminar_opcion == 'si':
-                            query_eliminar_cliente = "DELETE FROM cliente WHERE cedula = %s"
-                            cursor.execute(query_eliminar_cliente, (cedulaSeleccionada,))
-                            conn.commit()
-                            print('Cliente eliminado exitosamente.')
-
-                    elif opcion == 3:
-                        print('Saliendo...')
-                        return
-                else:
-                    print("Número de selección inválido.")
-            except ValueError:
-                print("Entrada inválida. Por favor, introduce un número entero.")
-        else:
-            print("No se encontraron clientes para el vendedor con cédula proporcionada.")
+            print("No se encontró información para la cédula proporcionada.")  
 def revisar_grupos(cursor, cedulaGerente):
     query = """
     SELECT g.id_grupo, g.id_gerente, g.Chanchito, g.Precio_desde, g.Precio_hasta, g.Tipo
