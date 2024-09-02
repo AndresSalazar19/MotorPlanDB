@@ -31,8 +31,6 @@ def insertar_cliente(cursor, conn, cedula, calle_principal, calle_secundaria, em
         print(f"Error: {err}")
         conn.rollback()
 
-
-
 def eliminar_cliente(cursor, conn, cedula):
     try:
         cursor.callproc('EliminarCliente', (cedula,))
@@ -538,24 +536,6 @@ def imprimir_menu(opciones):
     for i, opcion in enumerate(opciones, 1):
         print(f"{i}. {opcion}")
 
-    query_lista_grupos = """
-        SELECT g.id_grupo, g.id_gerente, g.id_ganador, COUNT(d.id_cliente) AS num_clientes
-        FROM grupo g
-        LEFT JOIN detalle_grupo d ON g.id_grupo = d.id_grupo
-        WHERE g.id_gerente = %s
-        GROUP BY g.id_grupo, g.id_gerente, g.id_ganador
-    """
-    cursor.execute(query_lista_grupos, (cedulaGerente,))
-    grupos = cursor.fetchall()
-    
-    if not grupos:
-        print("No hay grupos disponibles para el gerente especificado.")
-        return
-    
-    headers = ['ID Grupo', 'ID Gerente', 'ID Ganador', 'Número de Clientes']
-    print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
-    return grupos
-
 def consulta_externa():
     opciones = ["Verificar Cédula", "Consultar Cliente"]
     imprimir_menu(opciones)
@@ -1060,7 +1040,6 @@ while opcion != 3:
                 fecha_pago_input = input('Fecha de Pago: ')
             
                 try:
-                    # Convertir la fecha al formato adecuado
                     fecha_pago = tm.strftime('%Y-%m-%d', tm.strptime(fecha_pago_input, '%Y-%m-%d'))
                 except ValueError:
                     print('Fecha en formato incorrecto. Debe ser en el formato año-mes-día.')
