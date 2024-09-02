@@ -634,3 +634,208 @@ BEGIN
 END //
 
 DELIMITER ;
+CREATE INDEX idx_nombre_apellido_cliente
+ON cliente(apellido(10),nombre(10));
+
+CREATE INDEX idx_nombre_apellido_empleado
+ON empleado(apellido(10),nombre(10));
+
+CREATE INDEX idx_nombre_apellido_garante
+ON garante(apellidos(10),nombres(10));
+
+CREATE INDEX idx_nombre_concesionaria
+ON concesionaria(nombre(15));
+
+CREATE INDEX idx_modelo_proformaidx_modelo_proforma
+ON proforma(modelo(10));
+
+CREATE INDEX idx_fecha_firma_contrato
+on contrato(fecha_firma);
+
+CREATE INDEX idx_fecha_sorteo
+on sorteo(fecha_sorteo);
+
+Create user "VENDEDOR" identified by "adminVendedor" ;
+
+GRANT INSERT, SELECT, UPDATE ON motorplan.cliente TO "VENDEDOR";
+GRANT INSERT, SELECT, UPDATE ON motorplan.cuota TO "VENDEDOR";
+
+CREATE USER 'cliente'@'localhost' IDENTIFIED BY 'contraseña';
+
+GRANT EXECUTE ON PROCEDURE motorplan.consultaCliente TO 'cliente'@'localhost';
+GRANT EXECUTE ON PROCEDURE motorplan.consultaPagos TO 'cliente'@'localhost';
+
+CREATE USER 'recursosHumanos'@'localhost' IDENTIFIED BY 'contraseña789';
+GRANT SELECT, INSERT, DELETE, UPDATE ON motorplan.Empleado TO 'recursosHumanos'@'localhost';
+FLUSH PRIVILEGES;
+
+CREATE USER 'analista_financiero'@'localhost' IDENTIFIED BY 'contraseña123';
+GRANT SELECT ON motorplan.CONTRATO TO 'analista_financiero'@'localhost';
+GRANT SELECT ON motorplan.analisis_financiero_anual TO 'analista_financiero'@'localhost';
+FLUSH PRIVILEGES;
+ CREATE USER 'atencionAlCliente'@'localhost' IDENTIFIED BY 'contraseña456';
+GRANT SELECT, INSERT, UPDATE, DELETE ON motorplan.CLIENTE TO 'atencionAlCliente'@'localhost';
+FLUSH PRIVILEGES;
+ CREATE VIEW ModelosMasCotizados AS
+SELECT
+    categoria,
+    modelo,
+    costo
+FROM (
+    SELECT
+        'económico' AS categoria,
+        modelo,
+        costo,
+        ROW_NUMBER() OVER (PARTITION BY 'económico' ORDER BY COUNT(*) DESC) AS row_num
+    FROM PROFORMA
+    JOIN CONTRATO ON PROFORMA.id_Proforma = CONTRATO.id_proforma
+    WHERE YEAR(CONTRATO.fecha_firma) = YEAR(CURDATE())
+      AND PROFORMA.costo <= 15000
+    GROUP BY modelo, costo
+) AS ranked_economico
+WHERE row_num <= 3
+
+UNION ALL
+
+SELECT
+    categoria,
+    modelo,
+    costo
+FROM (
+    SELECT
+        'estándar' AS categoria,
+        modelo,
+        costo,
+        ROW_NUMBER() OVER (PARTITION BY 'estándar' ORDER BY COUNT(*) DESC) AS row_num
+    FROM PROFORMA
+    JOIN CONTRATO ON PROFORMA.id_Proforma = CONTRATO.id_proforma
+    WHERE YEAR(CONTRATO.fecha_firma) = YEAR(CURDATE())
+      AND PROFORMA.costo BETWEEN 15000 AND 25000
+    GROUP BY modelo, costo
+) AS ranked_estandar
+WHERE row_num <= 3
+
+UNION ALL
+
+SELECT
+    categoria,
+    modelo,
+    costo
+FROM (
+    SELECT
+        'premium' AS categoria,
+        modelo,
+        costo,
+        ROW_NUMBER() OVER (PARTITION BY 'premium' ORDER BY COUNT(*) DESC) AS row_num
+    FROM PROFORMA
+    JOIN CONTRATO ON PROFORMA.id_Proforma = CONTRATO.id_proforma
+    WHERE YEAR(CONTRATO.fecha_firma) = YEAR(CURDATE())
+      AND PROFORMA.costo > 25000
+    GROUP BY modelo, costo
+) AS ranked_premium
+WHERE row_num <= 3;
+
+CREATE VIEW analisis_financiero_anual AS
+SELECT 
+    ROUND(IFNULL(SUM(PROFORMA.costo), 0), 2) AS total_De_Venta,
+    ROUND(IFNULL(SUM(PROFORMA.costo) - SUM(pagos.total_pagado), 0), 2) AS CuentasPorCobrar
+FROM CONTRATO
+JOIN PROFORMA ON CONTRATO.id_proforma = PROFORMA.id_Proforma
+LEFT JOIN (
+    SELECT
+        CUOTA.id_contrato,
+        SUM(CUOTA.valor_cuota) AS total_pagado
+    FROM CUOTA
+    WHERE YEAR(CUOTA.fecha_pago) = YEAR(CURDATE())
+    GROUP BY CUOTA.id_contrato
+) AS pagos ON CONTRATO.id_contrato = pagos.id_contrato
+LEFT JOIN CLIENTE ON CONTRATO.id_cliente = CLIENTE.cedula
+WHERE YEAR(CONTRATO.fecha_firma) = YEAR(CURDATE());
+
+
+[22:27, 1/9/2024] Melissa: delimiter /
+Create trigger insertContrato after Insert on Contrato
+for each row 
+Begin
+    Declare precio float;
+    Declare iD_grupo int;
+	set precio = (Select p.costo
+					from proforma p
+					where p.id_proforma = new.id_proforma);
+	SET iD_grupo = (
+        SELECT g.id_grupo
+        FROM grupo g LEFT JOIN detalle_grupo dg ON g.id_grupo = dg.id_grupo
+        WHERE g.precio_desde <= precio AND g.precio_hasta >= precio
+        GROUP BY g.id_grupo
+        HAVING COUNT(dg.id_cliente) < 5
+        LIMIT 1
+    );
+	
+	if(iD_grupo is null ) then
+		Insert into Grupo(id_gerente, chanchito, precio_desde, precio_hasta) values(new.id_gerente, new.valor_cuota, precio, precio+15000);
+		SET @last_id = LAST_INSERT_ID();
+		Insert into Detalle_Grupo values(@last_id, new.id_cliente, new.id_contrato);
+	 else 
+        Insert into Detalle_Grupo values(iD_grupo, new.id_cliente, new.id_contrato	);	
+		update grupo
+		set chanchito = chanchito + new.valor_cuota
+		where id_grupo = iD_grupo;
+	 end if;
+     insert into cuota(id_cliente, id_contrato, valor_cuota, fecha_pago) values(new.id_cliente, new.id_contrato, new.valor_cuota, now());
+end /
+delimiter ;
+
+delimiter /
+Create trigger insertCuota before Insert on Cuota
+for each row
+begin
+    DECLARE cuota float;
+    DECLARE mensaje TEXT;
+    DECLARE num_cuotas int;
+    DECLARE IDgrupo int;
+    
+    set new.fecha_pago = now();
+    set IDgrupo = (
+            Select dg.id_grupo
+            from detalle_grupo dg 
+            where new.id_cliente = dg.id_cliente and dg.contrato = new.id_contrato);
+    set cuota = (Select valor_cuota from contrato where id_contrato = new.id_contrato);
+    set num_cuotas = (Select c.cuotas_totales from contrato c where c.id_contrato = new.id_contrato);
+    
+    if (num_cuotas = (Select count(*) from cuota c where c.id_contrato = new.id_contrato)) then
+        SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = "Este contrato ya culminó";  
+    end if;
+    
+    if (cuota <> new.valor_cuota) then
+         SET mensaje = CONCAT('Su cuota a pagar es de ', cuota);
+         SIGNAL SQLSTATE '02000' SET MESSAGE_TEXT = mensaje;
+    else 
+        set new.valor_cuota = cuota;
+        update grupo
+        set chanchito = chanchito + new.valor_cuota
+        where id_grupo = IDgrupo;
+    end if;
+    
+    if (num_cuotas = (Select count(*) from cuota c where c.id_contrato = new.id_contrato) + 1) then
+        update Contrato
+        set estado = 'Culminado'
+        where id_contrato = new.id_contrato;
+    end if;
+end /
+delimiter ;
+
+
+CREATE VIEW ListaGanadoresMas1vez AS
+	SELECT DISTINCT c.nombre, c.apellido
+	FROM cliente c
+	JOIN sorteo s ON c.cedula = s.cedula_ganador
+	WHERE s.cedula_ganador IN (
+		SELECT s2.cedula_ganador
+		FROM sorteo s2
+		GROUP BY s2.cedula_ganador
+		HAVING COUNT(DISTINCT s2.id_grupo) > 1
+	);
+CREATE USER 'admConcesionarias'@'localhost' IDENTIFIED BY 'adminConse123';
+GRANT SELECT, INSERT, DELETE, UPDATE ON motorplan.proforma TO 'admConcesionarias'@'localhost';
+GRANT SELECT, INSERT, DELETE, UPDATE ON motorplan.concesionaria TO 'admConcesionarias'@'localhost';
+
