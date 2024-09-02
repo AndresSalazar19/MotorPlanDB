@@ -373,13 +373,13 @@ def consulta_externa(cursor):
 
 def revisar_grupos(cursor, cedulaGerente):
     query = """
-    SELECT g.id_grupo, g.id_gerente, g.Chanchito, g.Precio_desde, g.Precio_hasta, g.Tipo
+    SELECT g.id_grupo, g.id_gerente, g.Chanchito, g.Precio_desde, g.Precio_hasta
     FROM GRUPO g
     WHERE g.id_gerente = %s
     """
     cursor.execute(query, (cedulaGerente,))
     results = cursor.fetchall()
-    column_names = ['ID Grupo', 'ID Gerente', 'Chanchito', 'Precio Desde', 'Precio Hasta', 'Tipo']
+    column_names = ['ID Grupo', 'ID Gerente', 'Chanchito', 'Precio Desde', 'Precio Hasta']
     print(tabulate(results, headers=column_names, tablefmt='grid'))
 
 def mostrar_ventas_anuales(cursor):
@@ -430,6 +430,19 @@ def mostrar_modelos_mascotizados(cursor):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
 
+def obtener_reporte(cursor):
+    consulta_sql = "SELECT * FROM ventas_anuales_por_vendedor;"
+    cursor.execute(consulta_sql)
+    resultados = cursor.fetchall()
+    headers = [i[0] for i in cursor.description]
+    print(tabulate(resultados, headers=headers, tablefmt='grid'))
+
+def mostrar_concesionarias(cursor):
+    cursor.execute("SELECT * FROM revisarConcesionarias;")
+    resultados = cursor.fetchall()
+    headers = [i[0] for i in cursor.description]
+    print(tabulate(resultados, headers=headers, tablefmt='grid'))
+
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Salir']
 menu_vendedor = ['Añadir Cliente', 'Actualizar Cliente', 'Gestionar Cuotas', 'Revisar Top models','Salir']
@@ -468,6 +481,7 @@ while opcion != 3:
                 print('Seleccione la acción deseada:')
                 print('1. Añadir Concesionaria')
                 print('2. Modificar Concesionaria')
+                print('3. Eliminar Concesionaria')
                 accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
                 
                 if accion == 1:
@@ -486,6 +500,10 @@ while opcion != 3:
                     calle_principal = input("Calle principal: ")
                     calle_secundaria = input("Calle secundaria: ")
                     actualizar_concesionaria(cursor, conn, id_concesionaria, nombre, telefono, email, calle_principal, calle_secundaria)
+                elif accion == 3:
+                    mostrar_concesionarias(cursor)
+                    id_concesionaria = input("Escriba el id de la concesionaria: ")
+                    eliminar_concesionaria(cursor, conn, id_concesionaria)
                 else:
                     print('Opción no válida.')
             elif opcionG == 3:
@@ -495,7 +513,6 @@ while opcion != 3:
                 accion = obtener_entero_positivo_y_cero_input('Ingrese una opción (1-2): ')
                 
                 if accion == 1:
-                    cedulaGerente = input("Ingrese la cédula del gerente: ")
                     revisar_grupos(cursor, cedulaGerente)
                 elif accion == 2:
                     id_grupo = int(input("Ingrese el ID del grupo: "))
@@ -516,6 +533,7 @@ while opcion != 3:
                 opcionG5 = obtener_entero_positivo_y_cero_input('Escoja una opcion: ')
                 if opcionG5 == 1:
                     print('Lista Vendedores')
+                    obtener_reporte(cursor)
                 elif opcionG5 == 2:
                         print("Completa los siguientes campos para continuar: ")
                         cedula = verificador_cedula("Cedula: ")
