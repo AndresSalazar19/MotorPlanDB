@@ -434,7 +434,7 @@ def insertar_grupo(cursor, conn, id_grupo, id_gerente, chanchito, precio_desde, 
 
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Salir']
-menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Gestionar Cuotas', 'Salir']
+menu_vendedor = ['Añadir Cliente', 'Actualizar Cliente', 'Gestionar Cuotas', 'Salir']
 
 
 opcion = 0
@@ -671,6 +671,7 @@ while opcion != 3:
                     print('Contrato generado exitosamente.')
                     pass
             elif opcionV == 2:
+                cedula = verificador_cedula("Cedula: ")
                 actualizar_cliente(cursor, conn, cedula)
             elif opcionV == 3:
                 print('Añadir cuota: ')
