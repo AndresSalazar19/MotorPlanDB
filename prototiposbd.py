@@ -431,10 +431,18 @@ def insertar_grupo(cursor, conn, id_grupo, id_gerente, chanchito, precio_desde, 
         conn.rollback()
 
 
+def mostrar_modelos_mascotizados(cursor):
+    try:
+        cursor.execute("SELECT * FROM modelosmascotizados")
+        rows = cursor.fetchall()
+        headers = [i[0] for i in cursor.description]
+        print(tabulate(rows, headers=headers, tablefmt='grid'))
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
 
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Salir']
-menu_vendedor = ['Añadir Cliente', 'Actualizar Cliente', 'Gestionar Cuotas', 'Salir']
+menu_vendedor = ['Añadir Cliente', 'Actualizar Cliente', 'Gestionar Cuotas', 'Revisar Top models','Salir']
 
 
 opcion = 0
@@ -581,7 +589,7 @@ while opcion != 3:
             imprimir_menu(menu_vendedor)
             opcionV = obtener_entero_positivo_y_cero_input('Ingrese una opción: ')
             while opcionV not in [1, 2, 3, 4]:
-                opcionV = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4): ')
+                opcionV = obtener_entero_positivo_y_cero_input('Ingrese una opción válida (1, 2, 3, 4, 5): ')
 
             if opcionV == 1:
                 print('Añadir Cliente')
@@ -690,6 +698,8 @@ while opcion != 3:
 
                 if fecha_pago:
                     insertar_cuota(cursor, conn, id_cuota, id_cliente, id_contrato, valor_cuota, fecha_pago)
+            elif opcionV == 5:
+                mostrar_modelos_mascotizados(cursor)
             elif opcionV == 4:
                 print('Saliendo...')
                 break
