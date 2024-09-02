@@ -497,6 +497,37 @@ def revisar_grupos(cursor, cedulaGerente):
     print(tabulate(grupos, headers=headers, tablefmt='fancy_grid'))
     return grupos
 
+
+def consulta_externa():
+    opciones = ["Verificar Cédula", "Consultar Cliente"]
+    imprimir_menu(opciones)
+    opcion = obtener_entero_positivo_y_cero_input("Seleccione una opción: ")
+
+    if opcion == 1:
+        cedula = verificador_cedula("Ingrese la cédula del cliente: ")
+        cursor.callproc('verificar_cedula_cliente', [cedula])
+        result = None
+        for resultado in cursor.stored_results():
+            result = resultado.fetchone()
+        if result:
+            print(f"Resultado de la verificación: {result[0]}")
+        else:
+            print("No se encontró información para la cédula proporcionada.")
+
+    elif opcion == 2:
+        cedula = verificador_cedula("Ingrese la cédula del cliente: ")
+        cursor.callproc('consultar_cliente', [cedula])
+        result = None
+        for resultado in cursor.stored_results():
+            result = resultado.fetchall()
+        if result:
+            headers = ["Campo", "Valor"]
+            print(tabulate(result, headers=headers, tablefmt='fancy_grid'))
+        else:
+            print("No se encontró información para la cédula proporcionada.")
+
+
+
 def editar_o_eliminar_grupo(cursor, conn, cedulaGerente):
     # Obtener los grupos asociados al cedulaGerente
     query_grupos = """
@@ -1053,7 +1084,7 @@ def mostrar_contratos(cursor, cedulaGerente):
     headers = ['ID Contrato', 'ID Proforma', 'Descripción', 'Cuotas Totales', 'Valor Cuota', 'Fecha Firma', 'Estado']
     print(tabulate(contratos, headers=headers, tablefmt='fancy_grid'))
 
-menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Salir"]
+menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
 menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Modificar Empleados','Salir']
 menu_vendedor = ['Añadir Cliente', 'Revisar Cliente', 'Gestionar Cuotas', 'Salir']
 
@@ -1411,6 +1442,9 @@ while opcion != 3:
                 break
 
     elif opcion == 3:
+        consulta_externa()
+
+    elif opcion == 4:
         print('Salir')
         break
 
