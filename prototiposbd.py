@@ -443,8 +443,15 @@ def mostrar_concesionarias(cursor):
     headers = [i[0] for i in cursor.description]
     print(tabulate(resultados, headers=headers, tablefmt='grid'))
 
+def mostrar_analisis_financiero_anual(cursor):
+    query = "SELECT * FROM analisis_financiero_anual;"
+    cursor.execute(query)
+    results = cursor.fetchall()
+    column_names = [i[0] for i in cursor.description]
+    print(tabulate(results, headers=column_names, tablefmt='grid'))
+
 menu_principal = ["Ingresar como Gerente", "Ingresar como Vendedor", "Consulta Externa", "Salir"]
-menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos','Salir']
+menu_gerente = ['Añadir Vendedor', 'Gestionar Concesionaria', 'Gestionar Grupos', 'Revisar Ventas', 'Revisar Vendedores', 'Gestionar Proformas', 'Revisar Contratos',"Analisis Financiero Anual",'Salir']
 menu_vendedor = ['Añadir Cliente', 'Actualizar Cliente', 'Gestionar Cuotas', 'Revisar Top models','Salir']
 
 
@@ -580,10 +587,12 @@ while opcion != 3:
                     eliminar_proforma(cursor, conn, id_proforma)
                 else:
                     print('Opción no válida.')
-            if opcionG == 7:
+            elif opcionG == 7:
                 print('Revisar Contratos')
                 mostrar_contratos_en_curso(cursor)
             elif opcionG == 8:
+                mostrar_analisis_financiero_anual(cursor)
+            elif opcionG == 9:
                 print('Saliendo...')
                 break
             salir_menu_gerente = input('¿Desea salir del menú Gerente? (s/n): ').strip().lower()
